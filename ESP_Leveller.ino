@@ -77,6 +77,7 @@ unsigned long lastMpuRead  = 0;
 unsigned long lastSsePush  = 0;
 unsigned long lastThrTouch = 0;
 bool thrDirty = false;
+volatile bool calRequested = false;  // set by web task, consumed in loop()
 
 // ---------------- FORWARD DECLARATIONS ----------------
 void startCountdown();
@@ -278,6 +279,15 @@ void loop() {
 
   // Debounced flash writes for threshold changes
   saveThresholdIfDue();
+
+  // Calibration runs HERE (loop owns the I2C bus) — doing it in the
+  // async web task raced with loop()'s mpu6050.update() and produced
+  // corrupted base angles -> "calibration sometimes doesn't save".
+  if (calRequested) {
+    calRequested = false;
+    calibrateDevice();
+    pushStateEvent(true);
+  }
 }
 
 // ---------------- WEB SERVER ----------------
@@ -327,8 +337,7 @@ void setupWebServer() {
   });
 
   server.on("/api/calibrate", HTTP_POST, [](AsyncWebServerRequest *request) {
-    calibrateDevice();
-    pushStateEvent(true);
+    calRequested = true;   // handled in loop(): owns the I2C bus
     request->send(200, "text/plain", "ok");
   });
 
@@ -341,7 +350,7 @@ void setupWebServer() {
   server.on("/api/threshold", HTTP_POST, [](AsyncWebServerRequest *request) {
     if (request->hasParam("val") && currentState == IDLE) {
       int v = request->getParam("val")->value().toInt();
-      if (v >= 5 && v <= 45) {
+      if (v >= 5 && v <= 90) {
         thresholdAngle = v;
         thrDirty = true;                 // debounced write; not every click
         lastThrTouch = millis();
@@ -398,9 +407,17 @@ void startCountdown() {
 }
 
 void calibrateDevice() {
-  mpu6050.update();
-  baseAngleX = mpu6050.getAngleX();
-  baseAngleY = mpu6050.getAngleY();
+  // Average 10 samples over ~500ms for a stable base angle.
+  float sumX = 0, sumY = 0;
+  const int N = 10;
+  for (int i = 0; i < N; i++) {
+    mpu6050.update();
+    sumX += mpu6050.getAngleX();
+    sumY += mpu6050.getAngleY();
+    delay(50);
+  }
+  baseAngleX = sumX / N;
+  baseAngleY = sumY / N;
   saveSettings();  // calibration is intentional & infrequent: write now
   currentState = IDLE;
 }

@@ -10,13 +10,22 @@
   WEB UI:
   - Connect phone to WiFi: LevellerAP2 / levelup123
   - Open http://192.168.4.1 (or http://leveller.local)
-  - Full UI: timer, tilt bar, threshold, START, CALIBRATE, ABORT, phone sounds
-  - State is PUSHED via Server-Sent Events (/api/events) — no polling lag
+  - State is PUSHED via Server-Sent Events (/api/events) at 10 Hz
+
+  LIBRARIES (Library Manager):
+  - "ESP Async WebServer" (ESP32Async/mathieucarbou fork) + "Async TCP"
+
+  WHY ASYNC (root-cause fix, 2026-09-04):
+  - Sync WebServer services ONE client at a time; the SSE connection
+    starved whenever any other request arrived -> "Disconnect" flicker,
+    timer updating every few seconds. AsyncWebServer + AsyncEventSource
+    keeps per-client queues and never blocks loop().
 
   HARDWARE NOTE (WiFi stability):
-  - ESP32-C3 Super Mini's onboard regulator struggles with WiFi TX current
-    spikes. TX power is capped at 8.5dBm in code (plenty for phone-at-desk).
-  - If instability persists, add a 100uF low-ESR capacitor across 5V/GND.
+  - ESP32-C3 Super Mini's onboard regulator struggles with WiFi TX
+    current spikes. TX power capped at 8.5dBm in code (fine for
+    phone-at-desk). If instability persists, add a 100uF low-ESR cap
+    across 5V/GND.
 
   IDE:
   - Board: ESP32C3 Dev Module
@@ -27,9 +36,9 @@
 #include <MPU6050_tockn.h>
 #include <Preferences.h>
 #include <WiFi.h>
-#include <WebServer.h>
 #include <ESPmDNS.h>
 #include <esp_wifi.h>
+#include <ESPAsyncWebServer.h>
 
 // ---------------- PIN DEFINITIONS (confirmed wiring) ----------------
 #define I2C_SDA 1
@@ -42,7 +51,8 @@ const char* WIFI_PASS = "levelup123";
 // ---------------- SENSOR & STORAGE ----------------
 MPU6050 mpu6050(Wire);
 Preferences prefs;
-WebServer server(80);
+AsyncWebServer server(80);
+AsyncEventSource events("/api/events");
 
 // ---------------- GAME STATES ----------------
 enum State { IDLE, COUNTDOWN, PLAYING, GAMEOVER };
@@ -60,8 +70,8 @@ unsigned long countdownDelay     = 0;
 unsigned long finalTime          = 0;
 
 // ---------------- TIMING / DEBOUNCE ----------------
-const unsigned long MPU_INTERVAL_MS   = 20;  // 50 Hz — enough for a levelling game
-const unsigned long SSE_INTERVAL_MS   = 100; // push rate to browser
+const unsigned long MPU_INTERVAL_MS   = 20;   // 50 Hz sensor reads
+const unsigned long SSE_INTERVAL_MS   = 100;  // 10 Hz push to browser
 const unsigned long NVS_SAVE_DELAY_MS = 3000; // debounce flash writes
 unsigned long lastMpuRead  = 0;
 unsigned long lastSsePush  = 0;
@@ -73,6 +83,7 @@ void startCountdown();
 void calibrateDevice();
 void saveThresholdIfDue();
 void saveSettings();
+void buildStateJson(char* buf, size_t len);
 void pushStateEvent(bool force);
 void setupWebServer();
 
@@ -190,7 +201,7 @@ function connect(){
   es.onerror=()=>{ $('conn').textContent='DISCONNECTED'; };
 }
 connect();
-// Fallback: if SSE is blocked, poll once a second instead of every 100ms
+// Poll fallback only if SSE never connected within 3s
 setTimeout(()=>{
   if($('conn').textContent==='DISCONNECTED'){
     setInterval(async ()=>{
@@ -234,10 +245,8 @@ void setup() {
 }
 
 void loop() {
-  server.handleClient();
-
-  // Rate-limited MPU reads: I2C at full speed was starving the
-  // single-core C3's WiFi/lwIP task (root cause of the laggy UI).
+  // Rate-limited MPU reads: full-speed I2C starved the single-core
+  // C3's WiFi/lwIP task (root cause of the original lag).
   unsigned long now = millis();
   if (now - lastMpuRead >= MPU_INTERVAL_MS) {
     lastMpuRead = now;
@@ -251,7 +260,7 @@ void loop() {
       if (now - countdownStartTime >= countdownDelay) {
         currentState  = PLAYING;
         gameStartTime = millis();
-        pushStateEvent(true);  // immediate state change -> push now
+        pushStateEvent(true);  // state change -> push immediately
       }
     }
     else if (currentState == PLAYING) {
@@ -263,7 +272,8 @@ void loop() {
     }
   }
 
-  // Push state to all connected browsers at 10 Hz
+  // Push state to all connected browsers at 10 Hz.
+  // AsyncEventSource queues per client — never blocks, never starves.
   pushStateEvent(false);
 
   // Debounced flash writes for threshold changes
@@ -283,49 +293,54 @@ void setupWebServer() {
   WiFi.setSleep(false);
   delay(100);
 
-  bool apOk = (WiFi.softAPIP() != IPAddress());
   Serial.print("AP IP: ");
   Serial.println(WiFi.softAPIP());
 
   MDNS.begin("leveller");
 
-  server.on("/", HTTP_GET, []() {
-    server.send(200, "text/html", HTML_PAGE);
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->send(200, "text/html", HTML_PAGE);
   });
 
-  // --- Server-Sent Events: push state instead of browser polling ---
-  server.on("/api/events", HTTP_GET, []() {
-    server.setContentLength(CONTENT_LENGTH_UNKNOWN);
-    server.send(200, "text/event-stream", "");
-    server.sendContent("retry: 2000\n\n");
-    pushStateEvent(true);
+  // --- SSE: push state instead of browser polling ---
+  server.addHandler(&events);
+  events.onConnect([](AsyncEventSourceClient *client) {
+    // Greet the fresh connection immediately so the UI doesn't sit at
+    // defaults for a second (and clear its DISCONNECTED badge).
+    char json[128];
+    buildStateJson(json, sizeof(json));
+    client->send(json, NULL, millis(), 2000);
   });
 
   // Poll fallback (also used by curl/tests)
-  server.on("/api/state", HTTP_GET, handleState);
+  server.on("/api/state", HTTP_GET, [](AsyncWebServerRequest *request) {
+    char json[128];
+    buildStateJson(json, sizeof(json));
+    request->send(200, "application/json", json);
+  });
 
-  server.on("/api/start", HTTP_POST, []() {
+  server.on("/api/start", HTTP_POST, [](AsyncWebServerRequest *request) {
     if (currentState == IDLE) startCountdown();
     else if (currentState == GAMEOVER) currentState = IDLE;
     pushStateEvent(true);
-    server.send(200, "text/plain", "ok");
+    request->send(200, "text/plain", "ok");
   });
 
-  server.on("/api/calibrate", HTTP_POST, []() {
+  server.on("/api/calibrate", HTTP_POST, [](AsyncWebServerRequest *request) {
     calibrateDevice();
     pushStateEvent(true);
-    server.send(200, "text/plain", "ok");
+    request->send(200, "text/plain", "ok");
   });
 
-  server.on("/api/abort", HTTP_POST, []() {
+  server.on("/api/abort", HTTP_POST, [](AsyncWebServerRequest *request) {
     if (currentState == COUNTDOWN || currentState == PLAYING) currentState = IDLE;
     pushStateEvent(true);
-    server.send(200, "text/plain", "ok");
+    request->send(200, "text/plain", "ok");
   });
 
-  server.on("/api/threshold", HTTP_POST, []() {
-    if (server.hasArg("val") && currentState == IDLE) {
-      int v = server.arg("val").toInt();
+  server.on("/api/threshold", HTTP_POST, [](AsyncWebServerRequest *request) {
+    if (request->hasParam("val") && currentState == IDLE) {
+      int v = request->getParam("val")->value().toInt();
       if (v >= 5 && v <= 45) {
         thresholdAngle = v;
         thrDirty = true;                 // debounced write; not every click
@@ -333,7 +348,7 @@ void setupWebServer() {
         pushStateEvent(true);
       }
     }
-    server.send(200, "text/plain", "ok");
+    request->send(200, "text/plain", "ok");
   });
 
   server.begin();
@@ -341,7 +356,7 @@ void setupWebServer() {
   Serial.println(WiFi.softAPIP());
 }
 
-void handleState() {
+void buildStateJson(char* buf, size_t len) {
   unsigned long t = 0;
   if (currentState == PLAYING) t = millis() - gameStartTime;
   else if (currentState == GAMEOVER) t = finalTime;
@@ -354,13 +369,10 @@ void handleState() {
     default:        st = "GAMEOVER";  break;
   }
 
-  // Static buffer + snprintf instead of String concatenation:
-  // no heap churn/fragmentation on every request.
-  char json[128];
-  snprintf(json, sizeof(json),
+  // Static buffer + snprintf: no heap churn on every tick.
+  snprintf(buf, len,
            "{\"state\":\"%s\",\"tilt\":%.1f,\"thr\":%d,\"t\":%lu}",
            st, lastMaxTilt, (int)thresholdAngle, t);
-  server.send(200, "application/json", json);
 }
 
 void pushStateEvent(bool force) {
@@ -368,31 +380,14 @@ void pushStateEvent(bool force) {
   if (!force && millis() - lastSsePush < SSE_INTERVAL_MS) return;
   lastSsePush = millis();
 
-  unsigned long t = 0;
-  if (currentState == PLAYING) t = millis() - gameStartTime;
-  else if (currentState == GAMEOVER) t = finalTime;
-
-  const char* st;
-  switch (currentState) {
-    case IDLE:      st = "IDLE";      break;
-    case COUNTDOWN: st = "COUNTDOWN"; break;
-    case PLAYING:   st = "PLAYING";   break;
-    default:        st = "GAMEOVER";  break;
-  }
-
   char json[128];
-  snprintf(json, sizeof(json),
-           "{\"state\":\"%s\",\"tilt\":%.1f,\"thr\":%d,\"t\":%lu}",
-           st, lastMaxTilt, (int)thresholdAngle, t);
+  buildStateJson(json, sizeof(json));
 
-  // Skip identical payloads (game timer changes every tick, so this
-  // mainly avoids spamming while IDLE with the device flat).
+  // Skip identical payloads (mainly avoids spam while IDLE & flat).
   if (!force && strcmp(json, lastJson) == 0) return;
   strncpy(lastJson, json, sizeof(lastJson) - 1);
 
-  server.sendContent("data: ");
-  server.sendContent(json);
-  server.sendContent("\n\n");
+  events.send(json, NULL, millis());
 }
 
 // ---------------- GAME FUNCTIONS ----------------

@@ -125,8 +125,11 @@ const char* HTML_PAGE = R"rawliteral(
 <div class='row small'><span id='tilttxt'>Tilt 0.0 / 15 deg</span></div>
 <div class='row'>
   <button id='minus'>&#x2796;</button>
-  <span id='thrtxt' style='font-weight:700;font-size:1.2rem'>15&deg;</span>
+  <input type='range' id='thrSlider' min='5' max='90' step='1' value='15' style='flex:1;accent-color:#0af'>
   <button id='plus'>&#x2795;</button>
+</div>
+<div class='row'>
+  <span id='thrtxt' style='font-weight:700;font-size:1.2rem'>15&deg;</span>
   <label class='small' style='margin-left:8px'><input type='checkbox' id='snd' checked> sound</label>
 </div>
 <div class='row'>
@@ -170,6 +173,9 @@ $('calBtn').onclick =()=>post('/api/calibrate');
 $('abortBtn').onclick=()=>post('/api/abort');
 $('plus').onclick =()=>post('/api/threshold?val='+(thr+1));
 $('minus').onclick=()=>post('/api/threshold?val='+(thr-1));
+const slider=$('thrSlider');
+slider.oninput=()=>{ $('thrtxt').textContent=slider.value+'\u00B0'; };          // live feedback
+slider.onchange=()=>post('/api/threshold?val='+slider.value);                    // commit on release
 document.addEventListener('pointerdown',()=>{try{ctx();}catch(e){}},{once:true});
 $('snd').onchange=()=>{if($('snd').checked) beep(1500,80);};
 function fmt(ms){
@@ -194,6 +200,7 @@ function applyState(s){
   f.className=s.tilt>s.thr?'bad':(s.tilt>s.thr*0.75?'warn':'');
   $('tilttxt').textContent='Tilt '+s.tilt.toFixed(1)+' / '+s.thr+' deg';
   $('thrtxt').textContent=s.thr+'\u00B0';
+  if(document.activeElement!==slider) slider.value=s.thr;   // don't fight the user's finger
   $('startBtn').textContent=s.state==='IDLE'?'START':(s.state==='GAMEOVER'?'BACK TO MENU':'...');
 }
 function connect(){

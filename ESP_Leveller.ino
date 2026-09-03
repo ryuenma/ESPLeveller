@@ -1,16 +1,22 @@
 /*================================================================================
   ESP32-C3 SHIELD LEVELLER — WEB ONLY (no OLED, no buttons, no buzzer)
   --------------------------------------------------------------------------------
-  WIRING:
+  WIRING (confirmed):
   - ESP32 3V3  -> GY-521 VCC
   - ESP32 GND  -> GY-521 GND
-  - ESP32 GPIO5 -> GY-521 SDA
-  - ESP32 GPIO6 -> GY-521 SCL
+  - ESP32 GPIO1 -> GY-521 SDA
+  - ESP32 GPIO0 -> GY-521 SCL
 
   WEB UI:
   - Connect phone to WiFi: LevellerAP2 / levelup123
-  - Open http://192.168.4.1
+  - Open http://192.168.4.1 (or http://leveller.local)
   - Full UI: timer, tilt bar, threshold, START, CALIBRATE, ABORT, phone sounds
+  - State is PUSHED via Server-Sent Events (/api/events) — no polling lag
+
+  HARDWARE NOTE (WiFi stability):
+  - ESP32-C3 Super Mini's onboard regulator struggles with WiFi TX current
+    spikes. TX power is capped at 8.5dBm in code (plenty for phone-at-desk).
+  - If instability persists, add a 100uF low-ESR capacitor across 5V/GND.
 
   IDE:
   - Board: ESP32C3 Dev Module
@@ -23,8 +29,9 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <ESPmDNS.h>
+#include <esp_wifi.h>
 
-// ---------------- PIN DEFINITIONS ----------------
+// ---------------- PIN DEFINITIONS (confirmed wiring) ----------------
 #define I2C_SDA 1
 #define I2C_SCL 0
 
@@ -52,14 +59,25 @@ unsigned long countdownStartTime = 0;
 unsigned long countdownDelay     = 0;
 unsigned long finalTime          = 0;
 
+// ---------------- TIMING / DEBOUNCE ----------------
+const unsigned long MPU_INTERVAL_MS   = 20;  // 50 Hz — enough for a levelling game
+const unsigned long SSE_INTERVAL_MS   = 100; // push rate to browser
+const unsigned long NVS_SAVE_DELAY_MS = 3000; // debounce flash writes
+unsigned long lastMpuRead  = 0;
+unsigned long lastSsePush  = 0;
+unsigned long lastThrTouch = 0;
+bool thrDirty = false;
+
 // ---------------- FORWARD DECLARATIONS ----------------
 void startCountdown();
 void calibrateDevice();
+void saveThresholdIfDue();
 void saveSettings();
-void handleState();
+void pushStateEvent(bool force);
 void setupWebServer();
 
 //================= WEB PAGE =================
+// State arrives via SSE (/api/events); fetch() only for actions.
 const char* HTML_PAGE = R"rawliteral(
 <!DOCTYPE html>
 <html>
@@ -146,29 +164,44 @@ function fmt(ms){
   const s=Math.floor(ms/1000), c=Math.floor((ms%1000)/10);
   return String(s).padStart(2,'0')+'.'+String(c).padStart(2,'0');
 }
-setInterval(async ()=>{
-  try{
-    const s=await (await fetch('/api/state',{cache:'no-store'})).json();
-    $('conn').textContent='';
-    if(s.state==='PLAYING'&&last.state==='COUNTDOWN') beep(2000,200);
-    if(s.state==='GAMEOVER'&&last.state!=='GAMEOVER') alarm();
-    if(s.state==='PLAYING'&&s.tilt>s.thr*0.75){
-      const frac=(s.tilt-s.thr*0.75)/(s.thr*0.25);
-      const iv=500-frac*440;
-      const now=Date.now();
-      if(now-lastTick>iv){ beep(2500,15); lastTick=now; }
-    }
-    last=s; thr=s.thr;
-    const st=$('status'); st.textContent=s.state; st.className=s.state;
-    $('timer').textContent=fmt(s.t)+(s.state==='GAMEOVER'?' FINAL':'');
-    const pct=Math.max(0,Math.min(100,s.tilt/s.thr*100));
-    const f=$('tiltfill'); f.style.width=pct+'%';
-    f.className=s.tilt>s.thr?'bad':(s.tilt>s.thr*0.75?'warn':'');
-    $('tilttxt').textContent='Tilt '+s.tilt.toFixed(1)+' / '+s.thr+' deg';
-    $('thrtxt').textContent=s.thr+'\u00B0';
-    $('startBtn').textContent=s.state==='IDLE'?'START':(s.state==='GAMEOVER'?'BACK TO MENU':'...');
-  }catch(e){$('conn').textContent='DISCONNECTED';}
-},100);
+// --- SSE: state is pushed by the device ---
+function applyState(s){
+  if(s.state==='PLAYING'&&last.state==='COUNTDOWN') beep(2000,200);
+  if(s.state==='GAMEOVER'&&last.state!=='GAMEOVER') alarm();
+  if(s.state==='PLAYING'&&s.tilt>s.thr*0.75){
+    const frac=(s.tilt-s.thr*0.75)/(s.thr*0.25);
+    const iv=500-frac*440;
+    const now=Date.now();
+    if(now-lastTick>iv){ beep(2500,15); lastTick=now; }
+  }
+  last=s; thr=s.thr;
+  const st=$('status'); st.textContent=s.state; st.className=s.state;
+  $('timer').textContent=fmt(s.t)+(s.state==='GAMEOVER'?' FINAL':'');
+  const pct=Math.max(0,Math.min(100,s.tilt/s.thr*100));
+  const f=$('tiltfill'); f.style.width=pct+'%';
+  f.className=s.tilt>s.thr?'bad':(s.tilt>s.thr*0.75?'warn':'');
+  $('tilttxt').textContent='Tilt '+s.tilt.toFixed(1)+' / '+s.thr+' deg';
+  $('thrtxt').textContent=s.thr+'\u00B0';
+  $('startBtn').textContent=s.state==='IDLE'?'START':(s.state==='GAMEOVER'?'BACK TO MENU':'...');
+}
+function connect(){
+  const es=new EventSource('/api/events');
+  es.onmessage=e=>{ $('conn').textContent=''; try{ applyState(JSON.parse(e.data)); }catch(_){} };
+  es.onerror=()=>{ $('conn').textContent='DISCONNECTED'; };
+}
+connect();
+// Fallback: if SSE is blocked, poll once a second instead of every 100ms
+setTimeout(()=>{
+  if($('conn').textContent==='DISCONNECTED'){
+    setInterval(async ()=>{
+      try{
+        const s=await (await fetch('/api/state',{cache:'no-store'})).json();
+        $('conn').textContent='';
+        applyState(s);
+      }catch(e){ $('conn').textContent='DISCONNECTED'; }
+    },1000);
+  }
+},3000);
 </script>
 </body>
 </html>
@@ -181,7 +214,7 @@ void setup() {
   // Verify MPU6050 is alive
   Wire.beginTransmission(0x68);
   if (Wire.endTransmission() != 0) {
-    Serial.println("MPU6050 NOT FOUND — check wiring");
+    Serial.println("MPU6050 NOT FOUND — check wiring (SDA=GPIO1, SCL=GPIO0)");
     for (;;);
   }
   Serial.println("MPU6050 found at 0x68");
@@ -203,37 +236,54 @@ void setup() {
 void loop() {
   server.handleClient();
 
-  mpu6050.update();
-  float tiltX = abs(mpu6050.getAngleX() - baseAngleX);
-  float tiltY = abs(mpu6050.getAngleY() - baseAngleY);
-  float maxTilt = (tiltX > tiltY) ? tiltX : tiltY;
-  lastMaxTilt = maxTilt;
+  // Rate-limited MPU reads: I2C at full speed was starving the
+  // single-core C3's WiFi/lwIP task (root cause of the laggy UI).
+  unsigned long now = millis();
+  if (now - lastMpuRead >= MPU_INTERVAL_MS) {
+    lastMpuRead = now;
+    mpu6050.update();
+    float tiltX = abs(mpu6050.getAngleX() - baseAngleX);
+    float tiltY = abs(mpu6050.getAngleY() - baseAngleY);
+    float maxTilt = (tiltX > tiltY) ? tiltX : tiltY;
+    lastMaxTilt = maxTilt;
 
-  if (currentState == COUNTDOWN) {
-    if (millis() - countdownStartTime >= countdownDelay) {
-      currentState  = PLAYING;
-      gameStartTime = millis();
+    if (currentState == COUNTDOWN) {
+      if (now - countdownStartTime >= countdownDelay) {
+        currentState  = PLAYING;
+        gameStartTime = millis();
+        pushStateEvent(true);  // immediate state change -> push now
+      }
+    }
+    else if (currentState == PLAYING) {
+      if (maxTilt > thresholdAngle) {
+        currentState = GAMEOVER;
+        finalTime = millis() - gameStartTime;
+        pushStateEvent(true);
+      }
     }
   }
-  else if (currentState == PLAYING) {
-    if (maxTilt > thresholdAngle) {
-      currentState = GAMEOVER;
-      finalTime = millis() - gameStartTime;
-    }
-  }
+
+  // Push state to all connected browsers at 10 Hz
+  pushStateEvent(false);
+
+  // Debounced flash writes for threshold changes
+  saveThresholdIfDue();
 }
 
 // ---------------- WEB SERVER ----------------
 void setupWebServer() {
   Serial.println("Starting WiFi AP...");
   WiFi.mode(WIFI_AP);
-  delay(200);
-  WiFi.setSleep(false);
-  WiFi.setTxPower(WIFI_POWER_15dBm);
+  WiFi.softAP(WIFI_SSID, WIFI_PASS, 1, 0, 4);
 
-  bool apOk = WiFi.softAP(WIFI_SSID, WIFI_PASS, 1, 0, 4);
-  Serial.print("softAP result: ");
-  Serial.println(apOk ? "OK" : "FAILED");
+  // CRITICAL for ESP32-C3 Super Mini: the tiny onboard regulator cannot
+  // handle 19.5dBm TX current peaks -> brownouts -> AP drops.
+  // Cap TX power AFTER the radio is up. 8.5dBm is the community-stable value.
+  esp_wifi_set_max_tx_power(WIFI_POWER_8_5dBm);
+  WiFi.setSleep(false);
+  delay(100);
+
+  bool apOk = (WiFi.softAPIP() != IPAddress());
   Serial.print("AP IP: ");
   Serial.println(WiFi.softAPIP());
 
@@ -243,21 +293,33 @@ void setupWebServer() {
     server.send(200, "text/html", HTML_PAGE);
   });
 
+  // --- Server-Sent Events: push state instead of browser polling ---
+  server.on("/api/events", HTTP_GET, []() {
+    server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+    server.send(200, "text/event-stream", "");
+    server.sendContent("retry: 2000\n\n");
+    pushStateEvent(true);
+  });
+
+  // Poll fallback (also used by curl/tests)
   server.on("/api/state", HTTP_GET, handleState);
 
   server.on("/api/start", HTTP_POST, []() {
     if (currentState == IDLE) startCountdown();
     else if (currentState == GAMEOVER) currentState = IDLE;
+    pushStateEvent(true);
     server.send(200, "text/plain", "ok");
   });
 
   server.on("/api/calibrate", HTTP_POST, []() {
     calibrateDevice();
+    pushStateEvent(true);
     server.send(200, "text/plain", "ok");
   });
 
   server.on("/api/abort", HTTP_POST, []() {
     if (currentState == COUNTDOWN || currentState == PLAYING) currentState = IDLE;
+    pushStateEvent(true);
     server.send(200, "text/plain", "ok");
   });
 
@@ -266,7 +328,9 @@ void setupWebServer() {
       int v = server.arg("val").toInt();
       if (v >= 5 && v <= 45) {
         thresholdAngle = v;
-        saveSettings();
+        thrDirty = true;                 // debounced write; not every click
+        lastThrTouch = millis();
+        pushStateEvent(true);
       }
     }
     server.send(200, "text/plain", "ok");
@@ -282,7 +346,7 @@ void handleState() {
   if (currentState == PLAYING) t = millis() - gameStartTime;
   else if (currentState == GAMEOVER) t = finalTime;
 
-  String st;
+  const char* st;
   switch (currentState) {
     case IDLE:      st = "IDLE";      break;
     case COUNTDOWN: st = "COUNTDOWN"; break;
@@ -290,11 +354,45 @@ void handleState() {
     default:        st = "GAMEOVER";  break;
   }
 
-  String json = "{\"state\":\"" + st +
-                "\",\"tilt\":" + String(lastMaxTilt, 1) +
-                ",\"thr\":" + String((int)thresholdAngle) +
-                ",\"t\":" + String(t) + "}";
+  // Static buffer + snprintf instead of String concatenation:
+  // no heap churn/fragmentation on every request.
+  char json[128];
+  snprintf(json, sizeof(json),
+           "{\"state\":\"%s\",\"tilt\":%.1f,\"thr\":%d,\"t\":%lu}",
+           st, lastMaxTilt, (int)thresholdAngle, t);
   server.send(200, "application/json", json);
+}
+
+void pushStateEvent(bool force) {
+  static char lastJson[128] = {0};
+  if (!force && millis() - lastSsePush < SSE_INTERVAL_MS) return;
+  lastSsePush = millis();
+
+  unsigned long t = 0;
+  if (currentState == PLAYING) t = millis() - gameStartTime;
+  else if (currentState == GAMEOVER) t = finalTime;
+
+  const char* st;
+  switch (currentState) {
+    case IDLE:      st = "IDLE";      break;
+    case COUNTDOWN: st = "COUNTDOWN"; break;
+    case PLAYING:   st = "PLAYING";   break;
+    default:        st = "GAMEOVER";  break;
+  }
+
+  char json[128];
+  snprintf(json, sizeof(json),
+           "{\"state\":\"%s\",\"tilt\":%.1f,\"thr\":%d,\"t\":%lu}",
+           st, lastMaxTilt, (int)thresholdAngle, t);
+
+  // Skip identical payloads (game timer changes every tick, so this
+  // mainly avoids spamming while IDLE with the device flat).
+  if (!force && strcmp(json, lastJson) == 0) return;
+  strncpy(lastJson, json, sizeof(lastJson) - 1);
+
+  server.sendContent("data: ");
+  server.sendContent(json);
+  server.sendContent("\n\n");
 }
 
 // ---------------- GAME FUNCTIONS ----------------
@@ -308,8 +406,16 @@ void calibrateDevice() {
   mpu6050.update();
   baseAngleX = mpu6050.getAngleX();
   baseAngleY = mpu6050.getAngleY();
-  saveSettings();
+  saveSettings();  // calibration is intentional & infrequent: write now
   currentState = IDLE;
+}
+
+void saveThresholdIfDue() {
+  if (thrDirty && (millis() - lastThrTouch >= NVS_SAVE_DELAY_MS)) {
+    prefs.putFloat("threshold", thresholdAngle);
+    thrDirty = false;
+    Serial.println("Threshold saved to NVS");
+  }
 }
 
 void saveSettings() {

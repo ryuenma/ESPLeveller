@@ -5,8 +5,8 @@
   WIRING:
   - Board 3V3 -> GY-521 VCC
   - Board GND -> GY-521 GND
-  - Board IO1 -> GY-521 SDA
-  - Board IO0 -> GY-521 SCL
+  - Board IO4 -> GY-521 SDA  (board's dedicated I2C_SDA pin)
+  - Board IO5 -> GY-521 SCL  (board's dedicated I2C_SCL pin)
 
   BOARD-SPECIFIC NOTES (LuatOS ESP32C3-CORE):
   - External SPI flash uses GPIO11-17 (DIO mode). DO NOT use GPIO11-17
@@ -17,7 +17,8 @@
   - Upload speed / serial log: 115200 works everywhere (921600 is the
     LuatOS factory default but clone CH343 drivers can be flaky at it).
   - Strapping pins: GPIO9 (BOOT) must not be pulled low at power-on;
-    GPIO8 should not be pulled low externally.
+    GPIO8 should not be pulled low externally. GPIO18/19 are USB D-/D+
+    on the USB-native variant — avoid.
 
   WEB UI:
   - Connect phone to WiFi: BarrettAP / levelup123
@@ -47,8 +48,8 @@
 #include <ESPAsyncWebServer.h>
 
 // ---------------- PIN DEFINITIONS (LuatOS ESP32C3-CORE) ----------------
-#define I2C_SDA 1
-#define I2C_SCL 0
+#define I2C_SDA 4   // board's dedicated I2C_SDA (mux function per LuatOS pin table)
+#define I2C_SCL 5   // board's dedicated I2C_SCL
 #define LED_STATUS 12   // D4 onboard LED, active-high (GPIO12/13 only safe LEDs; 11-17 are flash pins)
 
 // ---------------- WIFI ----------------
@@ -244,7 +245,7 @@ void setup() {
   // Verify MPU6050 is alive
   Wire.beginTransmission(0x68);
   if (Wire.endTransmission() != 0) {
-    Serial.println("MPU6050 NOT FOUND — check wiring (SDA=IO1, SCL=IO0)");
+    Serial.println("MPU6050 NOT FOUND — check wiring (SDA=IO4, SCL=IO5)");
     // Distress blink so an unattended board is diagnosable at a glance
     for (;;) {
       digitalWrite(LED_STATUS, !digitalRead(LED_STATUS));

@@ -1,0 +1,551 @@
+ERC report (2026-09-07T00:31:24, Encoding UTF8)
+Report includes: Errors, Warnings, Exclusions
+
+***** Sheet /
+[label_dangling]: Label not connected
+    ; error
+    @(27.94 mm, 48.73 mm): Label 'BATT+'
+[label_dangling]: Label not connected
+    ; error
+    @(27.94 mm, 51.27 mm): Label 'BATT-'
+[pin_not_connected]: Pin not connected
+    ; error
+    @(40.00 mm, 50.00 mm): Pin 2 [???, ?]
+[pin_not_connected]: Pin not connected
+    ; error
+    @(75.00 mm, 45.00 mm): Pin 2 [???, ?]
+[wire_dangling]: Wires not connected to anything
+    ; error
+    @(75.00 mm, 50.08 mm): Vertical Wire, length 41.19 mm
+    @(75.00 mm, 91.27 mm): Horizontal Wire, length 22.31 mm
+[pin_not_connected]: Pin not connected
+    ; error
+    @(102.85 mm, 88.73 mm): Pin 1 [???, ?]
+[pin_not_connected]: Pin not connected
+    ; error
+    @(110.00 mm, 75.00 mm): Pin 1 [???, ?]
+[pin_not_connected]: Pin not connected
+    ; error
+    @(110.00 mm, 90.00 mm): Pin 3 [???, ?]
+[label_dangling]: Label not connected
+    ; error
+    @(119.00 mm, 71.19 mm): Label 'BATT-'
+[label_dangling]: Label not connected
+    ; error
+    @(119.00 mm, 73.73 mm): Label 'BATT+'
+[wire_dangling]: Wires not connected to anything
+    ; error
+    @(128.00 mm, 78.81 mm): Vertical Wire, length 38.89 mm
+    @(123.97 mm, 78.81 mm): Horizontal Wire, length 4.03 mm
+[pin_not_connected]: Pin not connected
+    ; error
+    @(128.23 mm, 88.73 mm): Pin 1 [???, ?]
+[pin_not_connected]: Pin not connected
+    ; error
+    @(129.54 mm, 76.27 mm): Pin 1 [???, ?]
+[pin_not_connected]: Pin not connected
+    ; error
+    @(135.00 mm, 91.27 mm): Pin 1 [???, ?]
+[pin_not_connected]: Pin not connected
+    ; error
+    @(150.00 mm, 45.00 mm): Pin 2 [???, ?]
+[pin_not_connected]: Pin not connected
+    ; error
+    @(150.00 mm, 55.62 mm): Pin 1 [???, ?]
+[pin_not_connected]: Pin not connected
+    ; error
+    @(155.54 mm, 39.92 mm): Pin 1 [???, ?]
+[pin_not_connected]: Pin not connected
+    ; error
+    @(155.54 mm, 51.11 mm): Pin 1 [???, ?]
+[pin_not_connected]: Pin not connected
+    ; error
+    @(157.48 mm, 56.19 mm): Pin 1 [???, ?]
+[label_dangling]: Label not connected
+    ; error
+    @(157.48 mm, 58.73 mm): Label 'SDA'
+[pin_not_connected]: Pin not connected
+    ; error
+    @(160.00 mm, 53.65 mm): Pin 1 [???, ?]
+[pin_not_connected]: Pin not connected
+    ; error
+    @(180.00 mm, 60.00 mm): Pin 14 [???, ?]
+[label_dangling]: Label not connected
+    ; error
+    @(200.66 mm, 51.11 mm): Label 'SCL'
+[label_dangling]: Label not connected
+    ; error
+    @(200.66 mm, 53.65 mm): Label 'BTN'
+[label_dangling]: Label not connected
+    ; error
+    @(200.66 mm, 56.19 mm): Label 'LED_STAT'
+[pin_not_connected]: Pin not connected
+    ; error
+    @(207.00 mm, 12.70 mm): Pin 1 [???, ?]
+[pin_not_connected]: Pin not connected
+    ; error
+    @(207.00 mm, 20.00 mm): Pin 1 [???, ?]
+[pin_not_connected]: Pin not connected
+    ; error
+    @(210.00 mm, 26.67 mm): Pin 1 [???, ?]
+[pin_not_connected]: Pin not connected
+    ; error
+    @(210.00 mm, 35.00 mm): Pin 1 [???, ?]
+[label_dangling]: Label not connected
+    ; error
+    @(210.00 mm, 97.79 mm): Label 'LED_STAT'
+[pin_not_connected]: Pin not connected
+    ; error
+    @(210.00 mm, 105.00 mm): Pin 1 [???, ?]
+[wire_dangling]: Wires not connected to anything
+    ; error
+    @(210.00 mm, 110.08 mm): Vertical Wire, length 15.00 mm
+[pin_not_connected]: Pin not connected
+    ; error
+    @(210.00 mm, 120.00 mm): Pin 2 [???, ?]
+[pin_not_connected]: Pin not connected
+    ; error
+    @(210.00 mm, 128.27 mm): Pin 1 [???, ?]
+[label_dangling]: Label not connected
+    ; error
+    @(222.25 mm, 56.19 mm): Label 'SCL'
+[label_dangling]: Label not connected
+    ; error
+    @(222.25 mm, 58.73 mm): Label 'SDA'
+[pin_not_connected]: Pin not connected
+    ; error
+    @(222.25 mm, 66.35 mm): Pin 1 [???, ?]
+[pin_not_connected]: Pin not connected
+    ; error
+    @(226.06 mm, 51.11 mm): Pin 1 [???, ?]
+[pin_not_connected]: Pin not connected
+    ; error
+    @(226.06 mm, 53.65 mm): Pin 1 [???, ?]
+[label_dangling]: Label not connected
+    ; error
+    @(226.06 mm, 88.73 mm): Label 'BTN'
+[pin_not_connected]: Pin not connected
+    ; error
+    @(226.06 mm, 91.27 mm): Pin 1 [???, ?]
+[pin_not_connected]: Pin not connected
+    ; error
+    @(240.00 mm, 60.00 mm): Pin 8 [???, ?]
+[pin_not_connected]: Pin not connected
+    ; error
+    @(240.00 mm, 90.00 mm): Pin 1 [???, ?]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(32.38 mm, 48.73 mm): Horizontal Wire, length 4.44 mm
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(32.38 mm, 48.73 mm): Horizontal Wire, length 4.44 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(32.38 mm, 51.27 mm): Horizontal Wire, length 4.44 mm
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(32.38 mm, 51.27 mm): Horizontal Wire, length 4.44 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(40.00 mm, 50.00 mm): Pin 1 [???, ?]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(75.00 mm, 39.92 mm): Vertical Wire, length 0.00 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(75.00 mm, 45.00 mm): Pin 1 [???, ?]
+[footprint_link_issues]: Footprint 'SW_SPST_PTS645_V' not found in library 'Button_Switch_THT'
+    ; warning
+    @(75.00 mm, 45.00 mm): Symbol SW1 [SW_Push]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(75.00 mm, 50.08 mm): Vertical Wire, length 41.19 mm
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(75.00 mm, 50.08 mm): Vertical Wire, length 41.19 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(75.00 mm, 91.27 mm): Horizontal Wire, length 22.31 mm
+[no_connect_dangling]: Unconnected "no connection" flag
+    ; warning
+    @(96.03 mm, 73.73 mm): No Connect
+[no_connect_dangling]: Unconnected "no connection" flag
+    ; warning
+    @(96.03 mm, 76.27 mm): No Connect
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(97.30 mm, 88.73 mm): Horizontal Wire, length 5.55 mm
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(97.30 mm, 88.73 mm): Horizontal Wire, length 5.55 mm
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(97.31 mm, 91.27 mm): Horizontal Wire, length 0.01 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(97.31 mm, 91.27 mm): Horizontal Wire, length 0.01 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(102.85 mm, 88.73 mm): Pin 1 [???, ?]
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(97.30 mm, 88.73 mm): Horizontal Wire, length 5.55 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(110.00 mm, 75.00 mm): Pin 2 [???, ?]
+[footprint_link_issues]: The current configuration does not include the footprint library 'ESPLeveller'
+    ; warning
+    @(110.00 mm, 75.00 mm): Symbol U2 [TP4056_Module]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(110.00 mm, 90.00 mm): Pin 2 [???, ?]
+[footprint_link_issues]: The current configuration does not include the footprint library 'ESPLeveller'
+    ; warning
+    @(110.00 mm, 90.00 mm): Symbol U3 [MT3608_Module]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(122.70 mm, 88.73 mm): Horizontal Wire, length 5.53 mm
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(122.70 mm, 88.73 mm): Horizontal Wire, length 5.53 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(122.70 mm, 91.27 mm): Horizontal Wire, length 12.30 mm
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(122.70 mm, 91.27 mm): Horizontal Wire, length 12.30 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(123.97 mm, 71.19 mm): Horizontal Wire, length 4.97 mm
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(123.97 mm, 71.19 mm): Horizontal Wire, length 4.97 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(123.97 mm, 73.73 mm): Horizontal Wire, length 4.97 mm
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(123.97 mm, 73.73 mm): Horizontal Wire, length 4.97 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(123.97 mm, 76.27 mm): Horizontal Wire, length 5.57 mm
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(123.97 mm, 76.27 mm): Horizontal Wire, length 5.57 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(123.97 mm, 78.81 mm): Horizontal Wire, length 4.03 mm
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(123.97 mm, 78.81 mm): Horizontal Wire, length 4.03 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(128.00 mm, 39.92 mm): Horizontal Wire, length 53.00 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(128.00 mm, 78.81 mm): Vertical Wire, length 38.89 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(128.23 mm, 88.73 mm): Pin 1 [???, ?]
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(122.70 mm, 88.73 mm): Horizontal Wire, length 5.53 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(129.54 mm, 76.27 mm): Pin 1 [???, ?]
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(123.97 mm, 76.27 mm): Horizontal Wire, length 5.57 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(135.00 mm, 91.27 mm): Pin 1 [???, ?]
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(122.70 mm, 91.27 mm): Horizontal Wire, length 12.30 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(150.00 mm, 39.92 mm): Horizontal Wire, length 5.54 mm
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(150.00 mm, 39.92 mm): Horizontal Wire, length 5.54 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(150.00 mm, 45.00 mm): Pin 1 [???, ?]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(150.00 mm, 50.08 mm): Vertical Wire, length 5.54 mm
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(150.00 mm, 50.08 mm): Vertical Wire, length 5.54 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(150.00 mm, 55.62 mm): Pin 1 [???, ?]
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(150.00 mm, 50.08 mm): Vertical Wire, length 5.54 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(155.54 mm, 39.92 mm): Pin 1 [???, ?]
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(150.00 mm, 39.92 mm): Horizontal Wire, length 5.54 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(155.54 mm, 51.11 mm): Pin 1 [???, ?]
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(164.84 mm, 51.11 mm): Horizontal Wire, length 9.30 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(157.48 mm, 56.19 mm): Pin 1 [???, ?]
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(164.84 mm, 56.19 mm): Horizontal Wire, length 7.36 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(160.00 mm, 53.65 mm): Pin 1 [???, ?]
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(164.84 mm, 53.65 mm): Horizontal Wire, length 4.84 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(164.76 mm, 58.73 mm): Horizontal Wire, length 45.24 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(164.84 mm, 51.11 mm): Horizontal Wire, length 9.30 mm
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(164.84 mm, 51.11 mm): Horizontal Wire, length 9.30 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(164.84 mm, 53.65 mm): Horizontal Wire, length 4.84 mm
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(164.84 mm, 53.65 mm): Horizontal Wire, length 4.84 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(164.84 mm, 56.19 mm): Horizontal Wire, length 7.36 mm
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(164.84 mm, 56.19 mm): Horizontal Wire, length 7.36 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(164.84 mm, 58.73 mm): Horizontal Wire, length 7.36 mm
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(164.84 mm, 58.73 mm): Horizontal Wire, length 7.36 mm
+[no_connect_dangling]: Unconnected "no connection" flag
+    ; warning
+    @(164.84 mm, 61.27 mm): No Connect
+[no_connect_dangling]: Unconnected "no connection" flag
+    ; warning
+    @(164.84 mm, 63.81 mm): No Connect
+[no_connect_dangling]: Unconnected "no connection" flag
+    ; warning
+    @(164.84 mm, 66.35 mm): No Connect
+[no_connect_dangling]: Unconnected "no connection" flag
+    ; warning
+    @(164.84 mm, 68.89 mm): No Connect
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(180.00 mm, 60.00 mm): Pin 8 [???, ?]
+[footprint_link_issues]: The current configuration does not include the footprint library 'ESPLeveller'
+    ; warning
+    @(180.00 mm, 60.00 mm): Symbol U1 [ESP32C3_SuperMini]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(195.16 mm, 51.11 mm): Horizontal Wire, length 11.84 mm
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(195.16 mm, 51.11 mm): Horizontal Wire, length 11.84 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(195.16 mm, 53.65 mm): Horizontal Wire, length 5.50 mm
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(195.16 mm, 53.65 mm): Horizontal Wire, length 5.50 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(195.16 mm, 56.19 mm): Horizontal Wire, length 5.50 mm
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(195.16 mm, 56.19 mm): Horizontal Wire, length 5.50 mm
+[no_connect_dangling]: Unconnected "no connection" flag
+    ; warning
+    @(195.16 mm, 58.73 mm): No Connect
+[no_connect_dangling]: Unconnected "no connection" flag
+    ; warning
+    @(195.16 mm, 61.27 mm): No Connect
+[no_connect_dangling]: Unconnected "no connection" flag
+    ; warning
+    @(195.16 mm, 63.81 mm): No Connect
+[no_connect_dangling]: Unconnected "no connection" flag
+    ; warning
+    @(195.16 mm, 66.35 mm): No Connect
+[no_connect_dangling]: Unconnected "no connection" flag
+    ; warning
+    @(195.16 mm, 68.89 mm): No Connect
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(207.00 mm, 12.70 mm): Pin 1 [???, ?]
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(207.00 mm, 14.92 mm): Vertical Wire, length 2.22 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(207.00 mm, 14.92 mm): Vertical Wire, length 2.22 mm
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(207.00 mm, 14.92 mm): Vertical Wire, length 2.22 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(207.00 mm, 20.00 mm): Pin 1 [???, ?]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(207.00 mm, 25.08 mm): Vertical Wire, length 26.03 mm
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(207.00 mm, 25.08 mm): Vertical Wire, length 26.03 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(210.00 mm, 26.67 mm): Pin 1 [???, ?]
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(210.00 mm, 29.92 mm): Vertical Wire, length 3.25 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(210.00 mm, 29.92 mm): Vertical Wire, length 3.25 mm
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(210.00 mm, 29.92 mm): Vertical Wire, length 3.25 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(210.00 mm, 35.00 mm): Pin 1 [???, ?]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(210.00 mm, 40.08 mm): Vertical Wire, length 18.65 mm
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(210.00 mm, 40.08 mm): Vertical Wire, length 18.65 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(210.00 mm, 99.92 mm): Vertical Wire, length 2.13 mm
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(210.00 mm, 99.92 mm): Vertical Wire, length 2.13 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(210.00 mm, 105.00 mm): Pin 1 [???, ?]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(210.00 mm, 110.08 mm): Vertical Wire, length 15.00 mm
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(210.00 mm, 110.08 mm): Vertical Wire, length 15.00 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(210.00 mm, 114.92 mm): Vertical Wire, length 13.35 mm
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(210.00 mm, 114.92 mm): Vertical Wire, length 13.35 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(210.00 mm, 120.00 mm): Pin 1 [???, ?]
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(210.00 mm, 110.08 mm): Vertical Wire, length 15.00 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(210.00 mm, 128.27 mm): Pin 1 [???, ?]
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(210.00 mm, 114.92 mm): Vertical Wire, length 13.35 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(222.25 mm, 66.35 mm): Pin 1 [???, ?]
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(232.38 mm, 66.35 mm): Horizontal Wire, length 10.13 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(226.06 mm, 51.11 mm): Pin 1 [???, ?]
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(232.38 mm, 51.11 mm): Horizontal Wire, length 6.32 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(226.06 mm, 53.65 mm): Pin 1 [???, ?]
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(232.38 mm, 53.65 mm): Horizontal Wire, length 6.32 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(226.06 mm, 91.27 mm): Pin 1 [???, ?]
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(232.38 mm, 91.27 mm): Horizontal Wire, length 6.32 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(232.38 mm, 51.11 mm): Horizontal Wire, length 6.32 mm
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(232.38 mm, 51.11 mm): Horizontal Wire, length 6.32 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(232.38 mm, 53.65 mm): Horizontal Wire, length 6.32 mm
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(232.38 mm, 53.65 mm): Horizontal Wire, length 6.32 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(232.38 mm, 56.19 mm): Horizontal Wire, length 10.13 mm
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(232.38 mm, 56.19 mm): Horizontal Wire, length 10.13 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(232.38 mm, 58.73 mm): Horizontal Wire, length 10.13 mm
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(232.38 mm, 58.73 mm): Horizontal Wire, length 10.13 mm
+[no_connect_dangling]: Unconnected "no connection" flag
+    ; warning
+    @(232.38 mm, 61.27 mm): No Connect
+[no_connect_dangling]: Unconnected "no connection" flag
+    ; warning
+    @(232.38 mm, 63.81 mm): No Connect
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(232.38 mm, 66.35 mm): Horizontal Wire, length 10.13 mm
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(232.38 mm, 66.35 mm): Horizontal Wire, length 10.13 mm
+[no_connect_dangling]: Unconnected "no connection" flag
+    ; warning
+    @(232.38 mm, 68.89 mm): No Connect
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(232.38 mm, 88.73 mm): Horizontal Wire, length 6.32 mm
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(232.38 mm, 88.73 mm): Horizontal Wire, length 6.32 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(232.38 mm, 91.27 mm): Horizontal Wire, length 6.32 mm
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(232.38 mm, 91.27 mm): Horizontal Wire, length 6.32 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(240.00 mm, 60.00 mm): Pin 1 [???, ?]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(240.00 mm, 90.00 mm): Pin 1 [???, ?]
+
+ ** ERC messages: 179  Errors 43  Warnings 136
+
+ ** Ignored checks:
+    - Global label only appears once in the schematic
+    - Four connection points are joined together
+    - SPICE model issue
+    - Assigned footprint doesn't match footprint filters

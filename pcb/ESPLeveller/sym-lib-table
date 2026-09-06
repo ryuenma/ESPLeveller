@@ -1,0 +1,5 @@
+(sym_lib_table
+  (version 7)
+  (lib (name "ESPLeveller")(type "KiCad")(uri "${KIPRJMOD}/symbols/ESPLeveller.kicad_sym")(options "")(descr "Project symbols"))
+  (lib (name "Generic")(type "KiCad")(uri "${KIPRJMOD}/symbols/Generic.kicad_sym")(options "")(descr "Project generic symbols"))
+)

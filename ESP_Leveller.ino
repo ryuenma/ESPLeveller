@@ -134,7 +134,7 @@ const char* HTML_PAGE = R"rawliteral(
 </div>
 <div class='row'>
   <button id='calBtn'>CALIBRATE</button>
-  <button id='abortBtn'>ABORT</button>
+  <button id='abortBtn'>STOP</button>
 </div>
 <button id='startBtn'>START</button>
 <div class='info'>WiFi: LevellerAP2 &bull; 192.168.4.1</div>
@@ -239,9 +239,8 @@ void setup() {
   Serial.println("MPU6050 found at 0x68");
 
   mpu6050.begin();
-  Serial.println("Calibrating gyro (keep still)...");
-  mpu6050.calcGyroOffsets(true);
-  Serial.println("Gyro calibration done");
+  // No calcGyroOffsets(): tilt now comes from the accelerometer, which
+  // needs no gyro bias calibration. Saves ~7s at boot.
 
   prefs.begin("leveller", false);
   thresholdAngle = prefs.getFloat("threshold", 15.0);
@@ -259,10 +258,20 @@ void loop() {
   if (now - lastMpuRead >= MPU_INTERVAL_MS) {
     lastMpuRead = now;
     mpu6050.update();
-    float tiltX = abs(mpu6050.getAngleX() - baseAngleX);
-    float tiltY = abs(mpu6050.getAngleY() - baseAngleY);
+    // Drift-free tilt: angle vs. GRAVITY from the accelerometer.
+    // (getAngleX/Y are gyro-integrated and accumulate bias over hours —
+    // field-tested: visually-over-threshold players read under it.)
+    float roll  = atan2f(mpu6050.getAccY(), mpu6050.getAccZ()) * 57.2958f;
+    float pitch = atan2f(-mpu6050.getAccX(),
+                         sqrtf(mpu6050.getAccY()*mpu6050.getAccY() +
+                               mpu6050.getAccZ()*mpu6050.getAccZ())) * 57.2958f;
+    float tiltX = abs(roll  - baseAngleX);
+    if (tiltX > 180) tiltX = 360 - tiltX;
+    float tiltY = abs(pitch - baseAngleY);
+    if (tiltY > 180) tiltY = 360 - tiltY;
     float maxTilt = (tiltX > tiltY) ? tiltX : tiltY;
-    lastMaxTilt = maxTilt;
+    // EMA smoothing: kills accel noise/vibration spikes without lag
+    lastMaxTilt = lastMaxTilt * 0.7f + maxTilt * 0.3f;
 
     if (currentState == COUNTDOWN) {
       if (now - countdownStartTime >= countdownDelay) {
@@ -349,7 +358,13 @@ void setupWebServer() {
   });
 
   server.on("/api/abort", HTTP_POST, [](AsyncWebServerRequest *request) {
-    if (currentState == COUNTDOWN || currentState == PLAYING) currentState = IDLE;
+    // STOP: end the round and show elapsed time instead of resetting.
+    if (currentState == PLAYING) {
+      currentState = GAMEOVER;
+      finalTime = millis() - gameStartTime;
+    } else if (currentState == COUNTDOWN) {
+      currentState = IDLE;  // nothing to show for a cancelled countdown
+    }
     pushStateEvent(true);
     request->send(200, "text/plain", "ok");
   });
@@ -419,8 +434,12 @@ void calibrateDevice() {
   const int N = 10;
   for (int i = 0; i < N; i++) {
     mpu6050.update();
-    sumX += mpu6050.getAngleX();
-    sumY += mpu6050.getAngleY();
+    float roll  = atan2f(mpu6050.getAccY(), mpu6050.getAccZ()) * 57.2958f;
+    float pitch = atan2f(-mpu6050.getAccX(),
+                         sqrtf(mpu6050.getAccY()*mpu6050.getAccY() +
+                               mpu6050.getAccZ()*mpu6050.getAccZ())) * 57.2958f;
+    sumX += roll;
+    sumY += pitch;
     delay(50);
   }
   baseAngleX = sumX / N;

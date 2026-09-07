@@ -1,6 +1,17 @@
-# ESP Leveller — Custom PCB (P1: Schematic)
+# ESP Leveller — Custom PCB (P2: Layout)
 
-**Status:** schematic done, ERC connectivity-clean, netlist machine-verified. Next: PCB layout (P2).
+**Status:** layout done — Freerouting-routed (29 traces, 0 incomplete), GND pour on B.Cu, DRC 0 errors / 0 unconnected, ERC 0 errors, netlist re-verified identical to P1. Remaining DRC output: 4 cosmetic silkscreen warnings (module pad labels inside U2/U3 footprints) + footprint-field parity noise. Next: fab export (P3: Gerbers/drill/BOM).
+
+Board: 105 × 75 mm, 2-layer. Signal flow left→right: TP4056 (USB charge) → power switch → MT3608 (5V boost) → SuperMini socket. Sensor pod socket + I2C pull-ups top-right, status LED + opt button bottom-right, battery header bottom-left.
+
+## Files
+
+| File | What |
+|---|---|
+| `ESPLeveller.kicad_pcb` | Board layout (KiCad 10) |
+| `p2_populate.py` / `p2_route.py` / `p2_zone.py` / `p2_fill.py` | Reproducible layout pipeline (pcbnew API → Freerouting → zone fill) |
+| `p2_drc_final.rpt` / `p2_erc8.rpt` / `p2_verify.net` | Final verification artifacts |
+| `p2_render_top.png` / `p2_render_bottom.png` | 3D renders |
 
 ## Design
 

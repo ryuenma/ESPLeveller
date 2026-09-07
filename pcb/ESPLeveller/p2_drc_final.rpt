@@ -1,0 +1,106 @@
+** Drc report for ESPLeveller.kicad_pcb **
+** Created on 2026-09-07T23:33:11 **
+** Report includes: Errors, Warnings, Exclusions **
+
+** Found 4 DRC violations **
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(64.7300 mm, 62.2000 mm): Footprint text of U3 (IN-)
+    @(67.2700 mm, 62.2000 mm): Footprint text of U3 (OUT+)
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(69.8100 mm, 62.2000 mm): Footprint text of U3 (OUT-)
+    @(67.2700 mm, 62.2000 mm): Footprint text of U3 (OUT+)
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(36.3500 mm, 62.2000 mm): Footprint text of U2 (OUT-)
+    @(33.8100 mm, 62.2000 mm): Footprint text of U2 (OUT+)
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(33.8100 mm, 62.2000 mm): Footprint text of U2 (OUT+)
+    @(31.2700 mm, 62.2000 mm): Footprint text of U2 (B-)
+
+** Found 0 unconnected pads **
+
+** Found 24 Footprint errors **
+[footprint_symbol_mismatch]: CP_Radial_D8.0mm_P3.50mm doesn't match footprint given by symbol (Capacitor_THT:CP_Radial_D8.0mm_P3.50mm)
+    Local override; warning
+    @(66.0000 mm, 70.0000 mm): Footprint C1
+[footprint_symbol_field_mismatch]: Field 'Description' differs (PCB: '', Schematic: 'C')
+    Local override; warning
+    @(66.0000 mm, 70.0000 mm): Footprint C1
+[footprint_symbol_mismatch]: LED_D5.0mm doesn't match footprint given by symbol (LED_THT:LED_D5.0mm)
+    Local override; warning
+    @(95.0000 mm, 78.0000 mm): Footprint D1
+[footprint_symbol_field_mismatch]: Field 'Description' differs (PCB: '', Schematic: 'LED')
+    Local override; warning
+    @(95.0000 mm, 78.0000 mm): Footprint D1
+[footprint_symbol_mismatch]: PinHeader_1x02_P2.54mm_Vertical doesn't match footprint given by symbol (Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical)
+    Local override; warning
+    @(35.0000 mm, 70.0000 mm): Footprint J1
+[footprint_symbol_field_mismatch]: Field 'Description' differs (PCB: '', Schematic: 'Conn_01x02')
+    Local override; warning
+    @(35.0000 mm, 70.0000 mm): Footprint J1
+[footprint_symbol_mismatch]: PinSocket_1x08_P2.54mm_Vertical doesn't match footprint given by symbol (Connector_PinSocket_2.54mm:PinSocket_1x08_P2.54mm_Vertical)
+    Local override; warning
+    @(100.0000 mm, 25.0000 mm): Footprint J2
+[footprint_symbol_field_mismatch]: Field 'Description' differs (PCB: '', Schematic: 'Conn_01x08')
+    Local override; warning
+    @(100.0000 mm, 25.0000 mm): Footprint J2
+[footprint_symbol_mismatch]: PinHeader_1x02_P2.54mm_Vertical doesn't match footprint given by symbol (Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical)
+    Local override; warning
+    @(95.0000 mm, 82.0000 mm): Footprint J3
+[footprint_symbol_field_mismatch]: Field 'Description' differs (PCB: '', Schematic: 'Conn_01x02')
+    Local override; warning
+    @(95.0000 mm, 82.0000 mm): Footprint J3
+[footprint_symbol_mismatch]: R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal doesn't match footprint given by symbol (Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal)
+    Local override; warning
+    @(85.0000 mm, 30.0000 mm): Footprint R1
+[footprint_symbol_field_mismatch]: Field 'Description' differs (PCB: '', Schematic: 'R')
+    Local override; warning
+    @(85.0000 mm, 30.0000 mm): Footprint R1
+[footprint_symbol_mismatch]: R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal doesn't match footprint given by symbol (Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal)
+    Local override; warning
+    @(85.0000 mm, 40.0000 mm): Footprint R2
+[footprint_symbol_field_mismatch]: Field 'Description' differs (PCB: '', Schematic: 'R')
+    Local override; warning
+    @(85.0000 mm, 40.0000 mm): Footprint R2
+[footprint_symbol_mismatch]: R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal doesn't match footprint given by symbol (Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal)
+    Local override; warning
+    @(85.0000 mm, 70.0000 mm): Footprint R3
+[footprint_symbol_field_mismatch]: Field 'Description' differs (PCB: '', Schematic: 'R')
+    Local override; warning
+    @(85.0000 mm, 70.0000 mm): Footprint R3
+[footprint_symbol_mismatch]: SW_Tactile_SPST_Angled_PTS645Vx31-2LFS doesn't match footprint given by symbol (Button_Switch_THT:SW_Tactile_SPST_Angled_PTS645Vx31-2LFS)
+    Local override; warning
+    @(51.0000 mm, 60.0000 mm): Footprint SW1
+[footprint_symbol_field_mismatch]: Field 'Description' differs (PCB: '', Schematic: 'SW_Push')
+    Local override; warning
+    @(51.0000 mm, 60.0000 mm): Footprint SW1
+[footprint_symbol_mismatch]: ESP32-C3-SuperMini_Socket doesn't match footprint given by symbol (ESPLeveller:ESP32-C3-SuperMini_Socket)
+    Local override; warning
+    @(100.0000 mm, 55.0000 mm): Footprint U1
+[footprint_symbol_field_mismatch]: Field 'Description' differs (PCB: '', Schematic: 'ESP32C3_SuperMini')
+    Local override; warning
+    @(100.0000 mm, 55.0000 mm): Footprint U1
+[footprint_symbol_mismatch]: TP4056_Module_Pads doesn't match footprint given by symbol (ESPLeveller:TP4056_Module_Pads)
+    Local override; warning
+    @(30.0000 mm, 60.0000 mm): Footprint U2
+[footprint_symbol_field_mismatch]: Field 'Description' differs (PCB: '', Schematic: 'TP4056_Module')
+    Local override; warning
+    @(30.0000 mm, 60.0000 mm): Footprint U2
+[footprint_symbol_mismatch]: MT3608_Module_Pads doesn't match footprint given by symbol (ESPLeveller:MT3608_Module_Pads)
+    Local override; warning
+    @(66.0000 mm, 60.0000 mm): Footprint U3
+[footprint_symbol_field_mismatch]: Field 'Description' differs (PCB: '', Schematic: 'MT3608_Module')
+    Local override; warning
+    @(66.0000 mm, 60.0000 mm): Footprint U3
+
+** Ignored checks **
+    - Footprint has no courtyard defined
+    - Track endpoint not centered on via
+    - Tuning profile track geometries
+    - Footprint doesn't match symbol's footprint filters
+    - Footprint component type doesn't match footprint pads
+
+** End of Report **

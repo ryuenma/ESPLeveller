@@ -184,7 +184,7 @@
       (pin power_in line (at -12.7 -1.27 0) (length 5.08)
         (name "IN+" (effects (font (size 1.27 1.27))))
         (number "1" (effects (font (size 1.27 1.27)))))
-      (pin power_out line (at 12.7 1.27 180) (length 5.08)
+      (pin passive line (at 12.7 1.27 180) (length 5.08)
         (name "OUT-" (effects (font (size 1.27 1.27))))
         (number "4" (effects (font (size 1.27 1.27)))))
       (pin power_out line (at 12.7 -1.27 180) (length 5.08)
@@ -253,7 +253,7 @@
       (pin power_out line (at 13.97 1.27 180) (length 5.08)
         (name "B+" (effects (font (size 1.27 1.27))))
         (number "3" (effects (font (size 1.27 1.27)))))
-      (pin power_out line (at 13.97 -1.27 180) (length 5.08)
+      (pin passive line (at 13.97 -1.27 180) (length 5.08)
         (name "OUT-" (effects (font (size 1.27 1.27))))
         (number "6" (effects (font (size 1.27 1.27)))))
       (pin power_out line (at 13.97 -3.81 180) (length 5.08)
@@ -375,7 +375,7 @@
       (uuid "aa78ed3f-734a-4564-9b0d-0ee0df3aea7f")
       (property "Reference" "SW1" (at 81.28 44.45 0) (effects (font (size 1.27 1.27))))
       (property "Value" "PWR" (at 81.28 59.69 0) (effects (font (size 1.27 1.27))))
-      (property "Footprint" "Button_Switch_THT:SW_SPST_PTS645_V" (at 81.28 52.07 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (property "Footprint" "Button_Switch_THT:SW_Tactile_SPST_Angled_PTS645Vx31-2LFS" (at 81.28 52.07 0) (effects (font (size 1.27 1.27)) (hide yes)))
       (property "Datasheet" "~" (at 81.28 52.07 0) (effects (font (size 1.27 1.27)) (hide yes)))
       (property "Description" "SW_Push" (at 81.28 52.07 0) (effects (font (size 1.27 1.27)) (hide yes)))
       (pin "1" (uuid "3e28f722-9b5d-4299-86a4-4529c0f85e58"))
@@ -991,7 +991,27 @@
     (no_connect (at 212.01 64.77) (uuid "6c88fd26-1146-44b9-bf19-b6d10a593b67"))
     (no_connect (at 212.01 67.31) (uuid "e46f5670-077a-4818-bc7a-d0fe66e5d937"))
     (no_connect (at 212.01 69.85) (uuid "1e8c2d59-ee2c-49d5-8c75-cd198dd9be11"))
-    (symbol
+        (symbol
+      (lib_id "PWR_FLAG")
+      (at 128.27 93.98 0)
+      (unit 1)
+      (exclude_from_sim no) (in_bom no) (on_board yes) (dnp no)
+      (uuid "a2f6f7a1-4c5d-4e8f-9a1b-b2c7d8e901f4a596")
+      (property "Reference" "#FLG02" (at 128.27 96.48 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (property "Value" "PWR_FLAG" (at 128.27 97.98 0) (effects (font (size 1.27 1.27))))
+      (property "Footprint" "" (at 128.27 93.98 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (property "Datasheet" "~" (at 128.27 93.98 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (property "Description" "power symbol" (at 128.27 93.98 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (pin "1" (uuid "a2f6f7a1-4c5d-4e8f-9a1b-c3d8e9f402a5b607"))
+      (instances
+        (project "ESPLeveller"
+          (path "/a9a0ded6-8392-467b-8613-40d4fc2ddccc"
+            (reference "#FLG02") (unit 1)
+          )
+        )
+      )
+    )
+(symbol
       (lib_id "PWR_FLAG")
       (at 102.87 96.52 0)
       (unit 1)
@@ -1011,7 +1031,11 @@
         )
       )
     )
-    (sheet_instances
+    	(wire (pts (xy 129.54 77.47) (xy 129.54 77.47))
+		(uuid "a2f6f7a1-4c5d-4e8f-9a1b-d4e9f0a503b6c718")
+	)
+
+(sheet_instances
       (path "/" (page "1"))
     )
   (embedded_fonts no)

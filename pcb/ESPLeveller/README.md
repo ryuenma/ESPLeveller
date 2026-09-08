@@ -1,8 +1,8 @@
 # ESP Leveller — Custom PCB (P2: Layout)
 
-**Status:** layout done — Freerouting-routed (29 traces, 0 incomplete), GND pour on B.Cu, DRC 0 errors / 0 unconnected, ERC 0 errors, netlist re-verified identical to P1. Remaining DRC output: 4 cosmetic silkscreen warnings (module pad labels inside U2/U3 footprints) + footprint-field parity noise. Next: fab export (P3: Gerbers/drill/BOM).
+**Status:** layout v2 — re-optimized placement (antenna overhang east edge + keepout, switch actuator facing board edge, real-body collision-free), Freerouting-routed (0 incomplete), GND pour on B.Cu, DRC 0 errors / 0 unconnected (5 silk warnings only), ERC 0 errors, netlist verified. All 12 components have 3D models for visual build preview (U1/U2/U3 use simplified box WRL placeholders — swap in vendor STEP models any time). Next: fab export (P3: Gerbers/drill/BOM).
 
-Board: 105 × 75 mm, 2-layer. Signal flow left→right: TP4056 (USB charge) → power switch → MT3608 (5V boost) → SuperMini socket. Sensor pod socket + I2C pull-ups top-right, status LED + opt button bottom-right, battery header bottom-left.
+Board: 105 × 75 mm, 2-layer. Signal flow left→right: TP4056 (USB charge, connector overhanging left edge) → power switch (actuator faces top edge) → MT3608 (5V boost) → SuperMini socket (antenna section overhangs right edge + copper keepout). Sensor pod socket + I2C pull-ups top-right, status LED + opt button bottom-right, battery header bottom-left.
 
 ## Files
 
@@ -10,8 +10,9 @@ Board: 105 × 75 mm, 2-layer. Signal flow left→right: TP4056 (USB charge) → 
 |---|---|
 | `ESPLeveller.kicad_pcb` | Board layout (KiCad 10) |
 | `p2_populate.py` / `p2_route.py` / `p2_zone.py` / `p2_fill.py` | Reproducible layout pipeline (pcbnew API → Freerouting → zone fill) |
-| `p2_drc_final.rpt` / `p2_erc8.rpt` / `p2_verify.net` | Final verification artifacts |
-| `p2_render_top.png` / `p2_render_bottom.png` | 3D renders |
+| `footprints/3d/*.wrl` | Simple 3D models for the module footprints |
+| `p2_drc_final9.rpt` / `p2_erc8.rpt` / `p2_verify.net` | Final verification artifacts |
+| `p2_assembled_top.png` / `p2_assembled_bottom.png` | Assembled 3D renders |
 
 ## Design
 

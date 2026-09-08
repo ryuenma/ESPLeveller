@@ -1,0 +1,38 @@
+** Drc report for ESPLeveller.kicad_pcb **
+** Created on 2026-09-09T00:22:55 **
+** Report includes: Errors, Warnings, Exclusions **
+
+** Found 5 DRC violations **
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(125.0000 mm, 15.0000 mm): Segment on Edge.Cuts
+    @(102.5200 mm, 64.2200 mm): Rectangle of U1 on F.Silkscreen
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(64.7300 mm, 62.2000 mm): Footprint text of U3 (IN-)
+    @(67.2700 mm, 62.2000 mm): Footprint text of U3 (OUT+)
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(69.8100 mm, 62.2000 mm): Footprint text of U3 (OUT-)
+    @(67.2700 mm, 62.2000 mm): Footprint text of U3 (OUT+)
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(33.8100 mm, 62.2000 mm): Footprint text of U2 (OUT+)
+    @(31.2700 mm, 62.2000 mm): Footprint text of U2 (B-)
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(36.3500 mm, 62.2000 mm): Footprint text of U2 (OUT-)
+    @(33.8100 mm, 62.2000 mm): Footprint text of U2 (OUT+)
+
+** Found 0 unconnected pads **
+
+** Found 0 Footprint errors **
+
+** Ignored checks **
+    - Footprint has no courtyard defined
+    - Track endpoint not centered on via
+    - Tuning profile track geometries
+    - Footprint doesn't match symbol's footprint filters
+    - Footprint component type doesn't match footprint pads
+
+** End of Report **

@@ -2,11 +2,13 @@
   BARRETT LEVELLER — WEB ONLY (no OLED, no buttons, no buzzer)
   Board: LuatOS ESP32C3-CORE (and cheap clones thereof)
   --------------------------------------------------------------------------------
-  WIRING:
-  - Board 3V3 -> GY-521 VCC
-  - Board GND -> GY-521 GND
-  - Board IO4 -> GY-521 SDA  (board's dedicated I2C_SDA pin)
-  - Board IO5 -> GY-521 SCL  (board's dedicated I2C_SCL pin)
+  WIRING (sensor pod, either module works — auto-detected at boot):
+  - GY-521 (MPU6050) or GY-BMI160: VCC->3V3, GND->GND
+  - Board IO4 -> SDA  (board's dedicated I2C_SDA pin)
+  - Board IO5 -> SCL  (board's dedicated I2C_SCL pin)
+  NOTE: marketplace "GY-LSM6DS3" boards often actually carry a BMI160
+  (chips are pin-compatible, sellers mix them up). Firmware detects
+  the real chip by ID register, so the label doesn't matter.
 
   BOARD-SPECIFIC NOTES (LuatOS ESP32C3-CORE):
   - External SPI flash uses GPIO11-17 (DIO mode). DO NOT use GPIO11-17
@@ -57,10 +59,84 @@ const char* WIFI_SSID = "BarrettAP";
 const char* WIFI_PASS = "levelup123";
 
 // ---------------- SENSOR & STORAGE ----------------
+// Auto-detected at boot: GY-521 (MPU6050, addr 0x68/0x69) or GY-BMI160
+// (Bosch, same I2C addresses). Distinguished by ID registers — both
+// chips answer on the same addresses, WHO_AM_I/CHIP_ID is the only
+// reliable discriminator (marketplace boards are often mislabeled).
+enum ImuType { IMU_NONE, IMU_MPU6050, IMU_BMI160 };
+ImuType imuType = IMU_NONE;
+uint8_t imuAddr = 0;
+
 MPU6050 mpu6050(Wire);
 Preferences prefs;
 AsyncWebServer server(80);
 AsyncEventSource events("/api/events");
+
+// ---------------- LOW-LEVEL I2C HELPERS (BMI160 driver) ----------------
+bool i2cAlive(uint8_t addr) {
+  Wire.beginTransmission(addr);
+  return Wire.endTransmission() == 0;
+}
+
+uint8_t imuReadReg(uint8_t addr, uint8_t reg) {
+  Wire.beginTransmission(addr);
+  Wire.write(reg);
+  Wire.endTransmission(false);
+  if (Wire.requestFrom((int)addr, 1) != 1) return 0;
+  return Wire.read();
+}
+
+void imuWriteReg(uint8_t addr, uint8_t reg, uint8_t val) {
+  Wire.beginTransmission(addr);
+  Wire.write(reg);
+  Wire.write(val);
+  Wire.endTransmission();
+}
+
+// Raw accel read (g). Returns false on bus error (caller keeps last tilt).
+bool bmi160ReadAccel(float &ax, float &ay, float &az) {
+  Wire.beginTransmission(imuAddr);
+  Wire.write(0x12);                       // ACC_DATA_X_LSB, 6 bytes, LSB first
+  if (Wire.endTransmission(false) != 0) return false;
+  if (Wire.requestFrom((int)imuAddr, 6) != 6) return false;
+  int16_t rx = Wire.read() | (Wire.read() << 8);
+  int16_t ry = Wire.read() | (Wire.read() << 8);
+  int16_t rz = Wire.read() | (Wire.read() << 8);
+  ax = rx / 16384.0f;                     // ±2g range = 16384 LSB/g
+  ay = ry / 16384.0f;
+  az = rz / 16384.0f;
+  return true;
+}
+
+void bmi160Init() {
+  imuWriteReg(imuAddr, 0x7E, 0xB6);       // soft reset
+  delay(10);
+  imuReadReg(imuAddr, 0x7E);              // BMI160 I2C quirk: dummy read after reset
+  delay(5);
+  imuWriteReg(imuAddr, 0x40, 0x28);       // ACC_CONF: 100 Hz ODR, normal BW
+  imuWriteReg(imuAddr, 0x41, 0x03);       // ACC_RANGE: ±2g
+  imuWriteReg(imuAddr, 0x7E, 0x11);       // CMD: accelerometer -> normal mode
+  delay(5);
+}
+
+// Unified accel read in g — the ONLY sensor call the game logic uses.
+bool readAccelG(float &ax, float &ay, float &az) {
+  if (imuType == IMU_BMI160)  return bmi160ReadAccel(ax, ay, az);
+  if (imuType == IMU_MPU6050) {
+    mpu6050.update();
+    ax = mpu6050.getAccX(); ay = mpu6050.getAccY(); az = mpu6050.getAccZ();
+    return true;
+  }
+  return false;
+}
+
+const char* imuTypeName() {
+  switch (imuType) {
+    case IMU_MPU6050: return "MPU6050";
+    case IMU_BMI160:  return "BMI160";
+    default:          return "NONE";
+  }
+}
 
 // ---------------- GAME STATES ----------------
 enum State { IDLE, COUNTDOWN, PLAYING, GAMEOVER };
@@ -242,19 +318,30 @@ void setup() {
 
   Wire.begin(I2C_SDA, I2C_SCL);
 
-  // Verify MPU6050 is alive
-  Wire.beginTransmission(0x68);
-  if (Wire.endTransmission() != 0) {
-    Serial.println("MPU6050 NOT FOUND — check wiring (SDA=IO4, SCL=IO5)");
+  // Auto-detect IMU: GY-521 (MPU6050) and GY-BMI160 both sit at 0x68/0x69.
+  // WHO_AM_I (0x75) = 0x68 -> MPU6050; CHIP_ID (0x00) = 0xD1 -> BMI160.
+  const uint8_t addrs[2] = {0x68, 0x69};
+  for (uint8_t a : addrs) {
+    if (!i2cAlive(a)) continue;
+    if (imuReadReg(a, 0x75) == 0x68) {          // MPU6050 WHO_AM_I
+      imuType = IMU_MPU6050; imuAddr = a; break;
+    }
+    if (imuReadReg(a, 0x00) == 0xD1) {          // BMI160 CHIP_ID
+      imuType = IMU_BMI160;  imuAddr = a; break;
+    }
+  }
+  if (imuType == IMU_NONE) {
+    Serial.println("No IMU found (MPU6050/BMI160) — check pod wiring (SDA=IO4, SCL=IO5)");
     // Distress blink so an unattended board is diagnosable at a glance
     for (;;) {
       digitalWrite(LED_STATUS, !digitalRead(LED_STATUS));
       delay(100);
     }
   }
-  Serial.println("MPU6050 found at 0x68");
+  Serial.printf("%s found at 0x%02X\n", imuTypeName(), imuAddr);
 
-  mpu6050.begin();
+  if (imuType == IMU_MPU6050) mpu6050.begin();
+  else bmi160Init();
   // No calcGyroOffsets(): tilt now comes from the accelerometer, which
   // needs no gyro bias calibration. Saves ~7s at boot.
 
@@ -273,14 +360,16 @@ void loop() {
   unsigned long now = millis();
   if (now - lastMpuRead >= MPU_INTERVAL_MS) {
     lastMpuRead = now;
-    mpu6050.update();
+    float ax, ay, az;
+    if (!readAccelG(ax, ay, az)) {
+      // Bus hiccup: keep last tilt, retry next tick (no game glitch).
+    } else {
     // Drift-free tilt: angle vs. GRAVITY from the accelerometer.
     // (getAngleX/Y are gyro-integrated and accumulate bias over hours —
     // field-tested: visually-over-threshold players read under it.)
-    float roll  = atan2f(mpu6050.getAccY(), mpu6050.getAccZ()) * 57.2958f;
-    float pitch = atan2f(-mpu6050.getAccX(),
-                         sqrtf(mpu6050.getAccY()*mpu6050.getAccY() +
-                               mpu6050.getAccZ()*mpu6050.getAccZ())) * 57.2958f;
+    float roll  = atan2f(ay, az) * 57.2958f;
+    float pitch = atan2f(-ax,
+                         sqrtf(ay*ay + az*az)) * 57.2958f;
     float tiltX = abs(roll  - baseAngleX);
     if (tiltX > 180) tiltX = 360 - tiltX;
     float tiltY = abs(pitch - baseAngleY);
@@ -304,6 +393,7 @@ void loop() {
       }
     }
     updateStatusLed();
+    }
   }
 
   // Push state to all connected browsers at 10 Hz.
@@ -470,13 +560,14 @@ void calibrateDevice() {
   float sumX = 0, sumY = 0;
   const int N = 10;
   for (int i = 0; i < N; i++) {
-    mpu6050.update();
-    float roll  = atan2f(mpu6050.getAccY(), mpu6050.getAccZ()) * 57.2958f;
-    float pitch = atan2f(-mpu6050.getAccX(),
-                         sqrtf(mpu6050.getAccY()*mpu6050.getAccY() +
-                               mpu6050.getAccZ()*mpu6050.getAccZ())) * 57.2958f;
-    sumX += roll;
-    sumY += pitch;
+    float ax, ay, az;
+    if (readAccelG(ax, ay, az)) {
+      float roll  = atan2f(ay, az) * 57.2958f;
+      float pitch = atan2f(-ax,
+                           sqrtf(ay*ay + az*az)) * 57.2958f;
+      sumX += roll;
+      sumY += pitch;
+    }
     delay(50);
   }
   baseAngleX = sumX / N;

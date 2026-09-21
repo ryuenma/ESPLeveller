@@ -1,35 +1,44 @@
 /*================================================================================
-  ESP32-C3 SHIELD LEVELLER — WEB ONLY (no OLED, no buttons, no buzzer)
+  ESP LEVELLER — WEB ONLY (no OLED, no buttons, no buzzer)
+  Board: LuatOS ESP32C3-CORE (and cheap clones thereof)
   --------------------------------------------------------------------------------
-  WIRING (confirmed):
-  - ESP32 3V3  -> GY-521 VCC
-  - ESP32 GND  -> GY-521 GND
-  - ESP32 GPIO1 -> GY-521 SDA
-  - ESP32 GPIO0 -> GY-521 SCL
+  WIRING (sensor pod, either module works — auto-detected at boot):
+  - GY-521 (MPU6050) or GY-BMI160: VCC->3V3, GND->GND
+  - Board IO4 -> SDA  (board's dedicated I2C_SDA pin)
+  - Board IO5 -> SCL  (board's dedicated I2C_SCL pin)
+  NOTE: marketplace "GY-LSM6DS3" boards often actually carry a BMI160
+  (chips are pin-compatible, sellers mix them up). Firmware detects
+  the real chip by ID register, so the label doesn't matter.
+
+  BOARD-SPECIFIC NOTES (LuatOS ESP32C3-CORE):
+  - External SPI flash uses GPIO11-17 (DIO mode). DO NOT use GPIO11-17
+    for peripherals. Onboard LEDs: D4=GPIO12, D5=GPIO13 (active-high);
+    D4 is used here as the game-status LED.
+  - USB is a CH343 USB-UART bridge: in Arduino IDE set
+    "USB CDC On Boot: Disabled" and "Flash Mode: DIO".
+  - Upload speed / serial log: 115200 works everywhere (921600 is the
+    LuatOS factory default but clone CH343 drivers can be flaky at it).
+  - Strapping pins: GPIO9 (BOOT) must not be pulled low at power-on;
+    GPIO8 should not be pulled low externally. GPIO18/19 are USB D-/D+
+    on the USB-native variant — avoid.
 
   WEB UI:
-  - Connect phone to WiFi: LevellerAP2 / levelup123
+  - Connect phone to WiFi: ESPLevellerAP / levelup123
   - Open http://192.168.4.1 (or http://leveller.local)
   - State is PUSHED via Server-Sent Events (/api/events) at 10 Hz
 
   LIBRARIES (Library Manager):
   - "ESP Async WebServer" (ESP32Async/mathieucarbou fork) + "Async TCP"
 
-  WHY ASYNC (root-cause fix, 2026-09-04):
-  - Sync WebServer services ONE client at a time; the SSE connection
-    starved whenever any other request arrived -> "Disconnect" flicker,
-    timer updating every few seconds. AsyncWebServer + AsyncEventSource
-    keeps per-client queues and never blocks loop().
-
-  HARDWARE NOTE (WiFi stability):
-  - ESP32-C3 Super Mini's onboard regulator struggles with WiFi TX
-    current spikes. TX power capped at 8.5dBm in code (fine for
-    phone-at-desk). If instability persists, add a 100uF low-ESR cap
-    across 5V/GND.
+  HARDWARE NOTE:
+  - TX power capped at 8.5dBm: harmless on the LuatOS board's beefier
+    LDO, and keeps clone boards (whose regulators/antenna matching are
+    hit-or-miss) stable too.
 
   IDE:
   - Board: ESP32C3 Dev Module
-  - USB CDC On Boot: Enabled
+  - USB CDC On Boot: Disabled   <- CH343 board, critical!
+  - Flash Mode: DIO             <- external 2-wire flash, critical!
 ================================================================================*/
 
 #include <Wire.h>
@@ -40,19 +49,116 @@
 #include <esp_wifi.h>
 #include <ESPAsyncWebServer.h>
 
-// ---------------- PIN DEFINITIONS (confirmed wiring) ----------------
-#define I2C_SDA 1
-#define I2C_SCL 0
+// ---------------- SERIAL / DEBUG OUTPUT ----------------
+// v1.0.0: serial logging is OFF by default (release builds stay quiet on
+// a headless kiosk). Flip ENABLE_SERIAL to 1 during bring-up to watch the
+// boot sequence / AP IP / sensor detection on the Serial Monitor.
+#ifndef ENABLE_SERIAL
+#define ENABLE_SERIAL 0
+#endif
+
+#if ENABLE_SERIAL
+#define SLOG_BEGIN()      Serial.begin(115200)
+#define SLOGF(...)        Serial.printf(__VA_ARGS__)
+#define SLOG(msg)         Serial.println(msg)
+#define SLOG_P(msg)       Serial.print(msg)
+#define SLOG_IP(ip)       Serial.println(ip)
+#else
+#define SLOG_BEGIN()
+#define SLOGF(...)
+#define SLOG(msg)
+#define SLOG_P(msg)
+#define SLOG_IP(ip)
+#endif
+
+// ---------------- PIN DEFINITIONS (LuatOS ESP32C3-CORE) ----------------
+#define I2C_SDA 4   // board's dedicated I2C_SDA (mux function per LuatOS pin table)
+#define I2C_SCL 5   // board's dedicated I2C_SCL
+#define LED_STATUS 12   // D4 onboard LED, active-high (GPIO12/13 only safe LEDs; 11-17 are flash pins)
 
 // ---------------- WIFI ----------------
-const char* WIFI_SSID = "LevellerAP2";
+const char* WIFI_SSID = "ESPLevellerAP";
 const char* WIFI_PASS = "levelup123";
 
 // ---------------- SENSOR & STORAGE ----------------
+// Auto-detected at boot: GY-521 (MPU6050, addr 0x68/0x69) or GY-BMI160
+// (Bosch, same I2C addresses). Distinguished by ID registers — both
+// chips answer on the same addresses, WHO_AM_I/CHIP_ID is the only
+// reliable discriminator (marketplace boards are often mislabeled).
+enum ImuType { IMU_NONE, IMU_MPU6050, IMU_BMI160 };
+ImuType imuType = IMU_NONE;
+uint8_t imuAddr = 0;
+
 MPU6050 mpu6050(Wire);
 Preferences prefs;
 AsyncWebServer server(80);
 AsyncEventSource events("/api/events");
+
+// ---------------- LOW-LEVEL I2C HELPERS (BMI160 driver) ----------------
+bool i2cAlive(uint8_t addr) {
+  Wire.beginTransmission(addr);
+  return Wire.endTransmission() == 0;
+}
+
+uint8_t imuReadReg(uint8_t addr, uint8_t reg) {
+  Wire.beginTransmission(addr);
+  Wire.write(reg);
+  Wire.endTransmission(false);
+  if (Wire.requestFrom((int)addr, 1) != 1) return 0;
+  return Wire.read();
+}
+
+void imuWriteReg(uint8_t addr, uint8_t reg, uint8_t val) {
+  Wire.beginTransmission(addr);
+  Wire.write(reg);
+  Wire.write(val);
+  Wire.endTransmission();
+}
+
+// Raw accel read (g). Returns false on bus error (caller keeps last tilt).
+bool bmi160ReadAccel(float &ax, float &ay, float &az) {
+  Wire.beginTransmission(imuAddr);
+  Wire.write(0x12);                       // ACC_DATA_X_LSB, 6 bytes, LSB first
+  if (Wire.endTransmission(false) != 0) return false;
+  if (Wire.requestFrom((int)imuAddr, 6) != 6) return false;
+  int16_t rx = Wire.read() | (Wire.read() << 8);
+  int16_t ry = Wire.read() | (Wire.read() << 8);
+  int16_t rz = Wire.read() | (Wire.read() << 8);
+  ax = rx / 16384.0f;                     // ±2g range = 16384 LSB/g
+  ay = ry / 16384.0f;
+  az = rz / 16384.0f;
+  return true;
+}
+
+void bmi160Init() {
+  imuWriteReg(imuAddr, 0x7E, 0xB6);       // soft reset
+  delay(10);
+  imuReadReg(imuAddr, 0x7E);              // BMI160 I2C quirk: dummy read after reset
+  delay(5);
+  imuWriteReg(imuAddr, 0x40, 0x28);       // ACC_CONF: 100 Hz ODR, normal BW
+  imuWriteReg(imuAddr, 0x41, 0x03);       // ACC_RANGE: ±2g
+  imuWriteReg(imuAddr, 0x7E, 0x11);       // CMD: accelerometer -> normal mode
+  delay(5);
+}
+
+// Unified accel read in g — the ONLY sensor call the game logic uses.
+bool readAccelG(float &ax, float &ay, float &az) {
+  if (imuType == IMU_BMI160)  return bmi160ReadAccel(ax, ay, az);
+  if (imuType == IMU_MPU6050) {
+    mpu6050.update();
+    ax = mpu6050.getAccX(); ay = mpu6050.getAccY(); az = mpu6050.getAccZ();
+    return true;
+  }
+  return false;
+}
+
+const char* imuTypeName() {
+  switch (imuType) {
+    case IMU_MPU6050: return "MPU6050";
+    case IMU_BMI160:  return "BMI160";
+    default:          return "NONE";
+  }
+}
 
 // ---------------- GAME STATES ----------------
 enum State { IDLE, COUNTDOWN, PLAYING, GAMEOVER };
@@ -86,6 +192,7 @@ void saveThresholdIfDue();
 void saveSettings();
 void buildStateJson(char* buf, size_t len);
 void pushStateEvent(bool force);
+void updateStatusLed();
 void setupWebServer();
 
 //================= WEB PAGE =================
@@ -95,7 +202,7 @@ const char* HTML_PAGE = R"rawliteral(
 <html>
 <head>
 <meta name='viewport' content='width=device-width, initial-scale=1'>
-<title>Shield Leveller</title>
+<title>ESP Leveller</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,sans-serif}
   body{background:#111;color:#eee;padding:16px;max-width:480px;margin:auto}
@@ -117,7 +224,7 @@ const char* HTML_PAGE = R"rawliteral(
 </style>
 </head>
 <body>
-<h1>&#x1F6E1; SHIELD LEVELLER</h1>
+<h1>&#x1F6E1; BARRETT LEVELLER</h1>
 <div id='conn'></div>
 <div id='status'>IDLE</div>
 <div id='timer'>00.00</div>
@@ -137,7 +244,7 @@ const char* HTML_PAGE = R"rawliteral(
   <button id='abortBtn'>STOP</button>
 </div>
 <button id='startBtn'>START</button>
-<div class='info'>WiFi: LevellerAP2 &bull; 192.168.4.1</div>
+<div class='info'>WiFi: ESPLevellerAP &bull; 192.168.4.1</div>
 <script>
 let last={state:'IDLE'}, lastTick=0, actx=null, thr=15;
 const $=id=>document.getElementById(id);
@@ -227,44 +334,64 @@ setTimeout(()=>{
 )rawliteral";
 
 void setup() {
-  Serial.begin(115200);
+  SLOG_BEGIN();
+  pinMode(LED_STATUS, OUTPUT);
+  digitalWrite(LED_STATUS, LOW);
+
   Wire.begin(I2C_SDA, I2C_SCL);
 
-  // Verify MPU6050 is alive
-  Wire.beginTransmission(0x68);
-  if (Wire.endTransmission() != 0) {
-    Serial.println("MPU6050 NOT FOUND — check wiring (SDA=GPIO1, SCL=GPIO0)");
-    for (;;);
+  // Auto-detect IMU: GY-521 (MPU6050) and GY-BMI160 both sit at 0x68/0x69.
+  // WHO_AM_I (0x75) = 0x68 -> MPU6050; CHIP_ID (0x00) = 0xD1 -> BMI160.
+  const uint8_t addrs[2] = {0x68, 0x69};
+  for (uint8_t a : addrs) {
+    if (!i2cAlive(a)) continue;
+    if (imuReadReg(a, 0x75) == 0x68) {          // MPU6050 WHO_AM_I
+      imuType = IMU_MPU6050; imuAddr = a; break;
+    }
+    if (imuReadReg(a, 0x00) == 0xD1) {          // BMI160 CHIP_ID
+      imuType = IMU_BMI160;  imuAddr = a; break;
+    }
   }
-  Serial.println("MPU6050 found at 0x68");
+  if (imuType == IMU_NONE) {
+    SLOG("No IMU found (MPU6050/BMI160) — check pod wiring (SDA=IO4, SCL=IO5)");
+    // Distress blink so an unattended board is diagnosable at a glance
+    for (;;) {
+      digitalWrite(LED_STATUS, !digitalRead(LED_STATUS));
+      delay(100);
+    }
+  }
+  SLOGF("%s found at 0x%02X\n", imuTypeName(), imuAddr);
 
-  mpu6050.begin();
+  if (imuType == IMU_MPU6050) mpu6050.begin();
+  else bmi160Init();
   // No calcGyroOffsets(): tilt now comes from the accelerometer, which
   // needs no gyro bias calibration. Saves ~7s at boot.
 
-  prefs.begin("leveller", false);
+  prefs.begin("esp_leveller", false);
   thresholdAngle = prefs.getFloat("threshold", 15.0);
   baseAngleX     = prefs.getFloat("baseX", 0.0);
   baseAngleY     = prefs.getFloat("baseY", 0.0);
 
   setupWebServer();
-  Serial.println("Ready — connect to WiFi and open 192.168.4.1");
+  SLOG("Ready — connect to WiFi and open 192.168.4.1");
 }
 
 void loop() {
-  // Rate-limited MPU reads: full-speed I2C starved the single-core
+  // Rate-limited MPU reads: full-speed I2C starves the single-core
   // C3's WiFi/lwIP task (root cause of the original lag).
   unsigned long now = millis();
   if (now - lastMpuRead >= MPU_INTERVAL_MS) {
     lastMpuRead = now;
-    mpu6050.update();
+    float ax, ay, az;
+    if (!readAccelG(ax, ay, az)) {
+      // Bus hiccup: keep last tilt, retry next tick (no game glitch).
+    } else {
     // Drift-free tilt: angle vs. GRAVITY from the accelerometer.
     // (getAngleX/Y are gyro-integrated and accumulate bias over hours —
     // field-tested: visually-over-threshold players read under it.)
-    float roll  = atan2f(mpu6050.getAccY(), mpu6050.getAccZ()) * 57.2958f;
-    float pitch = atan2f(-mpu6050.getAccX(),
-                         sqrtf(mpu6050.getAccY()*mpu6050.getAccY() +
-                               mpu6050.getAccZ()*mpu6050.getAccZ())) * 57.2958f;
+    float roll  = atan2f(ay, az) * 57.2958f;
+    float pitch = atan2f(-ax,
+                         sqrtf(ay*ay + az*az)) * 57.2958f;
     float tiltX = abs(roll  - baseAngleX);
     if (tiltX > 180) tiltX = 360 - tiltX;
     float tiltY = abs(pitch - baseAngleY);
@@ -287,6 +414,8 @@ void loop() {
         pushStateEvent(true);
       }
     }
+    updateStatusLed();
+    }
   }
 
   // Push state to all connected browsers at 10 Hz.
@@ -298,7 +427,7 @@ void loop() {
 
   // Calibration runs HERE (loop owns the I2C bus) — doing it in the
   // async web task raced with loop()'s mpu6050.update() and produced
-  // corrupted base angles -> "calibration sometimes doesn't save".
+  // corrupted base angles.
   if (calRequested) {
     calRequested = false;
     calibrateDevice();
@@ -306,21 +435,42 @@ void loop() {
   }
 }
 
+// Onboard D4 LED as a glanceable status light:
+//   off      = IDLE
+//   blinking = COUNTDOWN
+//   on solid = PLAYING
+//   fast blinks x3 pattern = GAMEOVER
+void updateStatusLed() {
+  static unsigned long lastBlink = 0;
+  static bool ledOn = false;
+  unsigned long period;
+  switch (currentState) {
+    case COUNTDOWN: period = 200; break;
+    case PLAYING:   digitalWrite(LED_STATUS, HIGH); return;
+    case GAMEOVER:  period = 500; break;
+    default:        digitalWrite(LED_STATUS, LOW); return;
+  }
+  if (millis() - lastBlink >= period) {
+    lastBlink = millis();
+    ledOn = !ledOn;
+    digitalWrite(LED_STATUS, ledOn);
+  }
+}
+
 // ---------------- WEB SERVER ----------------
 void setupWebServer() {
-  Serial.println("Starting WiFi AP...");
+  SLOG("Starting WiFi AP...");
   WiFi.mode(WIFI_AP);
   WiFi.softAP(WIFI_SSID, WIFI_PASS, 1, 0, 4);
 
-  // CRITICAL for ESP32-C3 Super Mini: the tiny onboard regulator cannot
-  // handle 19.5dBm TX current peaks -> brownouts -> AP drops.
-  // Cap TX power AFTER the radio is up. 8.5dBm is the community-stable value.
+  // Cap TX power AFTER the radio is up. Harmless on the LuatOS board,
+  // insurance on clones with sketchy regulators/antenna matching.
   esp_wifi_set_max_tx_power(WIFI_POWER_8_5dBm);
   WiFi.setSleep(false);
   delay(100);
 
-  Serial.print("AP IP: ");
-  Serial.println(WiFi.softAPIP());
+  SLOG_P("AP IP: ");
+  SLOG(WiFi.softAPIP());
 
   MDNS.begin("leveller");
 
@@ -331,8 +481,6 @@ void setupWebServer() {
   // --- SSE: push state instead of browser polling ---
   server.addHandler(&events);
   events.onConnect([](AsyncEventSourceClient *client) {
-    // Greet the fresh connection immediately so the UI doesn't sit at
-    // defaults for a second (and clear its DISCONNECTED badge).
     char json[128];
     buildStateJson(json, sizeof(json));
     client->send(json, NULL, millis(), 2000);
@@ -383,8 +531,8 @@ void setupWebServer() {
   });
 
   server.begin();
-  Serial.print("Web UI ready: http://");
-  Serial.println(WiFi.softAPIP());
+  SLOG_P("Web UI ready: http://");
+  SLOG(WiFi.softAPIP());
 }
 
 void buildStateJson(char* buf, size_t len) {
@@ -430,29 +578,32 @@ void startCountdown() {
 
 void calibrateDevice() {
   // Average 10 samples over ~500ms for a stable base angle.
+  digitalWrite(LED_STATUS, HIGH);  // LED on = calibrating
   float sumX = 0, sumY = 0;
   const int N = 10;
   for (int i = 0; i < N; i++) {
-    mpu6050.update();
-    float roll  = atan2f(mpu6050.getAccY(), mpu6050.getAccZ()) * 57.2958f;
-    float pitch = atan2f(-mpu6050.getAccX(),
-                         sqrtf(mpu6050.getAccY()*mpu6050.getAccY() +
-                               mpu6050.getAccZ()*mpu6050.getAccZ())) * 57.2958f;
-    sumX += roll;
-    sumY += pitch;
+    float ax, ay, az;
+    if (readAccelG(ax, ay, az)) {
+      float roll  = atan2f(ay, az) * 57.2958f;
+      float pitch = atan2f(-ax,
+                           sqrtf(ay*ay + az*az)) * 57.2958f;
+      sumX += roll;
+      sumY += pitch;
+    }
     delay(50);
   }
   baseAngleX = sumX / N;
   baseAngleY = sumY / N;
   saveSettings();  // calibration is intentional & infrequent: write now
   currentState = IDLE;
+  digitalWrite(LED_STATUS, LOW);
 }
 
 void saveThresholdIfDue() {
   if (thrDirty && (millis() - lastThrTouch >= NVS_SAVE_DELAY_MS)) {
     prefs.putFloat("threshold", thresholdAngle);
     thrDirty = false;
-    Serial.println("Threshold saved to NVS");
+    SLOG("Threshold saved to NVS");
   }
 }
 

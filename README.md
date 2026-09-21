@@ -1,8 +1,8 @@
 # ESP Leveller 🛡️
 
-A real-time reaction/steadiness game built on an **ESP32-C3 Super Mini** and a **GY-521 (MPU6050)** accelerometer/gyro. Hold your device level — the moment it tilts past the threshold, the timer stops and you lose. Your phone is the controller *and* the display via a self-hosted web interface (no app, no internet needed).
+A real-time reaction/steadiness game built on an **ESP32-C3** and an accelerometer/gyro sensor pod. Hold your device level — the moment it tilts past the threshold, the timer stops and you lose. Your phone is the controller *and* the display via a self-hosted web interface (no app, no internet needed).
 
-![game states](https://img.shields.io/badge/states-IDLE%20%7C%20COUNTDOWN%20%7C%20PLAYING%20%7C%20GAMEOVER-blue)
+![states](https://img.shields.io/badge/states-IDLE%20%7C%20COUNTDOWN%20%7C%20PLAYING%20%7C%20GAMEOVER-blue)
 
 ## Features
 
@@ -13,53 +13,64 @@ A real-time reaction/steadiness game built on an **ESP32-C3 Super Mini** and a *
 - **Calibration** — set your current orientation as the level baseline, saved to flash
 - **Settings persist** in NVS (threshold, calibration base) — survive power cycles
 - **mDNS** — reachable at `http://leveller.local` on most phones
+- **Auto-detecting sensor pod** — works with a GY-521 (MPU6050) *or* a BMI160 breakout (e.g. GY-BMI160). Marketplace "GY-LSM6DS3" boards often actually carry a BMI160 (the chips are pin-compatible); the firmware identifies the real chip by its ID register, so the label doesn't matter.
 
 ## Hardware
 
 | Part | Role |
 |------|------|
-| ESP32-C3 Super Mini | MCU + WiFi AP |
-| GY-521 (MPU6050) | Tilt sensing |
+| ESP32-C3 (Super Mini / LuatOS C3-CORE or clone) | MCU + WiFi access point |
+| GY-521 (MPU6050) **or** GY-BMI160 breakout | Tilt sensing |
 
 ### Wiring
 
 ```
-ESP32-C3          GY-521
---------          ------
+ESP32-C3          Sensor pod
+--------          ----------
 3V3      ----->   VCC
 GND      ----->   GND
-GPIO1    ----->   SDA
-GPIO0    ----->   SCL
+IO4      ----->   SDA
+IO5      ----->   SCL
 ```
 
-> **Power note:** the Super Mini's onboard regulator is small. TX power is capped to 8.5 dBm in firmware for stability (plenty for phone-at-desk range). If you still see brownouts/disconnects, add a **100 µF low-ESR capacitor** across the board's 5V and GND.
+> **Board notes (LuatOS ESP32C3-CORE and clones):** external SPI flash uses GPIO11–17 —
+> don't use those for peripherals. Onboard LEDs D4=GPIO12, D5=GPIO13 (active-high); D4
+> is used here as the game-status LED. USB is a CH343 bridge: set **USB CDC On Boot: Disabled**
+> and **Flash Mode: DIO** in the IDE.
+>
+> **Power note:** the Super Mini's onboard regulator is small. TX power is capped to
+> 8.5 dBm in firmware for stability. If you still see brownouts/disconnects, add a
+> **100 µF low-ESR capacitor** across the board's 5V and GND.
 
 ## How to use
 
-1. **Power the device** (USB). First boot takes ~7 seconds — the gyro auto-calibrates, so keep it **still** during that time.
+1. **Power the device** (USB).
 2. On your phone, connect to the WiFi network:
-   - **SSID:** `LevellerAP2`
+   - **SSID:** `ESPLevellerAP`
    - **Password:** `levelup123`
 3. Open **http://192.168.4.1** (or `http://leveller.local`).
-4. Play:
-   - **CALIBRATE** — hold the device the way you'll hold it during the game (this becomes "level"), then tap CALIBRATE. Wait half a second.
-   - **Threshold** — set the fail angle with the slider or ± buttons (only while IDLE). Higher = easier.
-   - **START** — a random countdown begins (2–5 s). When the UI beeps and flips to PLAYING, the timer runs.
-   - **Keep it level.** The tilt bar fills as you tilt; it turns amber at 75% of the threshold (with warning ticks), red at the threshold.
-   - Tilting past the threshold ends the round — **GAMEOVER** shows your final time. Tap the button to return to menu.
+4. **CALIBRATE** — hold the device the way you'll hold it during the game (this becomes "level"), then tap CALIBRATE.
+   - **Threshold** — set the fail angle with the slider or ± buttons (only while IDLE).
+   - **START** — a random 2–5 s countdown begins, then the timer runs.
+   - **Keep it level.** The tilt bar fills as you tilt; it turns amber at 75% of the threshold, red at the threshold.
+   - Tilt too far and the round ends — **GAMEOVER** shows your final time.
    - **ABORT** bails out of a countdown/round mid-run.
 
-The interface is fully responsive — one phone is a player, but a second phone/laptop can spectate the same round in real time.
+The interface is fully responsive — one phone is the player, a second phone/laptop can spectate in real time.
 
 ## Building & flashing
 
 1. Open `ESP_Leveller.ino` in **Arduino IDE**.
 2. Install libraries (Library Manager):
-   - **ESP Async WebServer** (ESP32Async / mathieucarbou)
+   - **ESP Async WebServer** (ESP32Async / mathieucarbou fork)
    - **Async TCP** (same publisher)
-   - **MPU6050 by Electronic Cats** (tockn fork — provides `MPU6050_tockn.h`)
-3. Board: **ESP32C3 Dev Module**, with **USB CDC On Boot: Enabled**.
-4. Upload, open Serial Monitor @ 115200 to watch boot + calibration.
+   - **MPU6050 by Electronic Cats** (tockn fork — `MPU6050_tockn.h`; only needed for a GY-521 pod)
+3. Board: **ESP32-C3 Dev Module** (for a LuatOS C3-CORE / CH343 board set **USB CDC On Boot: Disabled**; use **Flash Mode: DIO**).
+4. Upload.
+
+> **Serial logging** is compiled out by default (`ENABLE_SERIAL 0`). To watch the boot
+> sequence / sensor detection / AP IP during bring-up, define `ENABLE_SERIAL 1` at the top
+> of the sketch. Release builds stay silent on a headless kiosk.
 
 ## API (for the curious)
 
@@ -69,17 +80,16 @@ The interface is fully responsive — one phone is a player, but a second phone/
 | `/api/events` | GET | SSE stream: `{"state","tilt","thr","t"}` at ~10 Hz |
 | `/api/state` | GET | One-shot JSON state (poll fallback) |
 | `/api/start` | POST | Start countdown / return to menu after GAMEOVER |
-| `/api/calibrate` | POST | Set current orientation as level (IDLE only) |
+| `/api/calibrate` | POST | Set current orientation as level |
 | `/api/abort` | POST | Cancel countdown or running round |
 | `/api/threshold?val=N` | POST | Set threshold, clamped 5–90 (IDLE only) |
 
-## Architecture notes (why it's built this way)
+## Project layout
 
-- **AsyncWebServer + AsyncEventSource** — the stock sync `WebServer` services one client at a time, which starves SSE streams (the timer visibly froze and "DISCONNECTED" flickered). The async stack keeps per-client queues and never blocks `loop()`.
-- **I2C ownership** — the MPU6050 is only touched from `loop()`; web handlers set request flags (`calRequested`) instead of touching the bus. Concurrent I2C from the web task corrupted calibrations.
-- **TX power cap** — `esp_wifi_set_max_tx_power(WIFI_POWER_8_5dBm)` *after* `softAP()`; the Super Mini's regulator sags at default 19.5 dBm TX peaks.
-- **MPU rate-limited to 50 Hz** — full-speed `update()` starved the single-core C3's WiFi task.
+- `ESP_Leveller.ino` — the entire firmware (single-file sketch)
+- `LICENSE` — MIT
+- A custom carrier **PCB design** for a compact hardware build lives on the `pcb-design` branch.
 
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE).

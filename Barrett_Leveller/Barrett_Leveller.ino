@@ -1,5 +1,5 @@
 /*================================================================================
-  BARRETT LEVELLER — WEB ONLY (no OLED, no buttons, no buzzer)
+  ESP LEVELLER — WEB ONLY (no OLED, no buttons, no buzzer)
   Board: LuatOS ESP32C3-CORE (and cheap clones thereof)
   --------------------------------------------------------------------------------
   WIRING (sensor pod, either module works — auto-detected at boot):
@@ -23,8 +23,8 @@
     on the USB-native variant — avoid.
 
   WEB UI:
-  - Connect phone to WiFi: BarrettAP / levelup123
-  - Open http://192.168.4.1 (or http://barrett.local)
+  - Connect phone to WiFi: ESPLevellerAP / levelup123
+  - Open http://192.168.4.1 (or http://leveller.local)
   - State is PUSHED via Server-Sent Events (/api/events) at 10 Hz
 
   LIBRARIES (Library Manager):
@@ -49,13 +49,35 @@
 #include <esp_wifi.h>
 #include <ESPAsyncWebServer.h>
 
+// ---------------- SERIAL / DEBUG OUTPUT ----------------
+// v1.0.0: serial logging is OFF by default (release builds stay quiet on
+// a headless kiosk). Flip ENABLE_SERIAL to 1 during bring-up to watch the
+// boot sequence / AP IP / sensor detection on the Serial Monitor.
+#ifndef ENABLE_SERIAL
+#define ENABLE_SERIAL 0
+#endif
+
+#if ENABLE_SERIAL
+#define SLOG_BEGIN()      Serial.begin(115200)
+#define SLOGF(...)        Serial.printf(__VA_ARGS__)
+#define SLOG(msg)         Serial.println(msg)
+#define SLOG_P(msg)       Serial.print(msg)
+#define SLOG_IP(ip)       Serial.println(ip)
+#else
+#define SLOG_BEGIN()
+#define SLOGF(...)
+#define SLOG(msg)
+#define SLOG_P(msg)
+#define SLOG_IP(ip)
+#endif
+
 // ---------------- PIN DEFINITIONS (LuatOS ESP32C3-CORE) ----------------
 #define I2C_SDA 4   // board's dedicated I2C_SDA (mux function per LuatOS pin table)
 #define I2C_SCL 5   // board's dedicated I2C_SCL
 #define LED_STATUS 12   // D4 onboard LED, active-high (GPIO12/13 only safe LEDs; 11-17 are flash pins)
 
 // ---------------- WIFI ----------------
-const char* WIFI_SSID = "BarrettAP";
+const char* WIFI_SSID = "ESPLevellerAP";
 const char* WIFI_PASS = "levelup123";
 
 // ---------------- SENSOR & STORAGE ----------------
@@ -180,7 +202,7 @@ const char* HTML_PAGE = R"rawliteral(
 <html>
 <head>
 <meta name='viewport' content='width=device-width, initial-scale=1'>
-<title>Barrett Leveller</title>
+<title>ESP Leveller</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,sans-serif}
   body{background:#111;color:#eee;padding:16px;max-width:480px;margin:auto}
@@ -222,7 +244,7 @@ const char* HTML_PAGE = R"rawliteral(
   <button id='abortBtn'>STOP</button>
 </div>
 <button id='startBtn'>START</button>
-<div class='info'>WiFi: BarrettAP &bull; 192.168.4.1</div>
+<div class='info'>WiFi: ESPLevellerAP &bull; 192.168.4.1</div>
 <script>
 let last={state:'IDLE'}, lastTick=0, actx=null, thr=15;
 const $=id=>document.getElementById(id);
@@ -312,7 +334,7 @@ setTimeout(()=>{
 )rawliteral";
 
 void setup() {
-  Serial.begin(115200);
+  SLOG_BEGIN();
   pinMode(LED_STATUS, OUTPUT);
   digitalWrite(LED_STATUS, LOW);
 
@@ -331,27 +353,27 @@ void setup() {
     }
   }
   if (imuType == IMU_NONE) {
-    Serial.println("No IMU found (MPU6050/BMI160) — check pod wiring (SDA=IO4, SCL=IO5)");
+    SLOG("No IMU found (MPU6050/BMI160) — check pod wiring (SDA=IO4, SCL=IO5)");
     // Distress blink so an unattended board is diagnosable at a glance
     for (;;) {
       digitalWrite(LED_STATUS, !digitalRead(LED_STATUS));
       delay(100);
     }
   }
-  Serial.printf("%s found at 0x%02X\n", imuTypeName(), imuAddr);
+  SLOGF("%s found at 0x%02X\n", imuTypeName(), imuAddr);
 
   if (imuType == IMU_MPU6050) mpu6050.begin();
   else bmi160Init();
   // No calcGyroOffsets(): tilt now comes from the accelerometer, which
   // needs no gyro bias calibration. Saves ~7s at boot.
 
-  prefs.begin("barrett", false);
+  prefs.begin("esp_leveller", false);
   thresholdAngle = prefs.getFloat("threshold", 15.0);
   baseAngleX     = prefs.getFloat("baseX", 0.0);
   baseAngleY     = prefs.getFloat("baseY", 0.0);
 
   setupWebServer();
-  Serial.println("Ready — connect to WiFi and open 192.168.4.1");
+  SLOG("Ready — connect to WiFi and open 192.168.4.1");
 }
 
 void loop() {
@@ -437,7 +459,7 @@ void updateStatusLed() {
 
 // ---------------- WEB SERVER ----------------
 void setupWebServer() {
-  Serial.println("Starting WiFi AP...");
+  SLOG("Starting WiFi AP...");
   WiFi.mode(WIFI_AP);
   WiFi.softAP(WIFI_SSID, WIFI_PASS, 1, 0, 4);
 
@@ -447,10 +469,10 @@ void setupWebServer() {
   WiFi.setSleep(false);
   delay(100);
 
-  Serial.print("AP IP: ");
-  Serial.println(WiFi.softAPIP());
+  SLOG_P("AP IP: ");
+  SLOG(WiFi.softAPIP());
 
-  MDNS.begin("barrett");
+  MDNS.begin("leveller");
 
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
     request->send(200, "text/html", HTML_PAGE);
@@ -509,8 +531,8 @@ void setupWebServer() {
   });
 
   server.begin();
-  Serial.print("Web UI ready: http://");
-  Serial.println(WiFi.softAPIP());
+  SLOG_P("Web UI ready: http://");
+  SLOG(WiFi.softAPIP());
 }
 
 void buildStateJson(char* buf, size_t len) {
@@ -581,7 +603,7 @@ void saveThresholdIfDue() {
   if (thrDirty && (millis() - lastThrTouch >= NVS_SAVE_DELAY_MS)) {
     prefs.putFloat("threshold", thresholdAngle);
     thrDirty = false;
-    Serial.println("Threshold saved to NVS");
+    SLOG("Threshold saved to NVS");
   }
 }
 

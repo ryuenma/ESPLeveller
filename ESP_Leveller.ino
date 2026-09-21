@@ -62,13 +62,11 @@
 #define SLOGF(...)        Serial.printf(__VA_ARGS__)
 #define SLOG(msg)         Serial.println(msg)
 #define SLOG_P(msg)       Serial.print(msg)
-#define SLOG_IP(ip)       Serial.println(ip)
 #else
 #define SLOG_BEGIN()
 #define SLOGF(...)
 #define SLOG(msg)
 #define SLOG_P(msg)
-#define SLOG_IP(ip)
 #endif
 
 // ---------------- PIN DEFINITIONS (LuatOS ESP32C3-CORE) ----------------

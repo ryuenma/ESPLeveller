@@ -8,3 +8,8 @@ build/
 # IDE
 .vscode/
 .idea/
+
+# Audit harness (anti-slop/clickthrough.js needs playwright-core + Chromium)
+node_modules/
+package-lock.json
+report.txt

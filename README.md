@@ -61,12 +61,14 @@ The page is responsive and works on a second phone or laptop as a live spectator
 
 ## Building and flashing
 
-1. Open `ESP_Leveller.ino` in the **Arduino IDE**.
-2. Install the libraries (Library Manager):
-   - **ESP Async WebServer** (ESP32Async / mathieucarbou fork)
-   - **Async TCP** (same publisher)
-   - **MPU6050 by Electronic Cats** (tockn fork, `MPU6050_tockn.h`; only needed for a GY-521 pod)
-3. Select **ESP32-C3 Dev Module**. On a LuatOS C3-CORE or any CH343 board, set
+1. Open `ESP_Leveller.ino` in the **Arduino IDE** (or build it with `arduino-cli`).
+2. Install the libraries (Library Manager). [Credits and dependencies](#credits-and-dependencies)
+   names each one and pins the versions this release was built against:
+   - **ESP Async WebServer** 3.6.0, by Mathieu Carbou, a fork of Me-No-Dev's
+   - **Async TCP** 3.3.2, same maintainer. The web server requires it; the sketch never includes it directly
+   - **MPU6050_tockn** 1.5.2, **only** if your pod is a GY-521 / MPU6050. A BMI160 pod needs no sensor library at all
+3. Select **ESP32-C3 Dev Module** from the Espressif `esp32` platform (3.3.11 is what this
+   release was verified against). On a LuatOS C3-CORE or any CH343 board, set
    **USB CDC On Boot: Disabled** and use **Flash Mode: DIO**.
 4. Upload.
 
@@ -93,6 +95,57 @@ The page is responsive and works on a second phone or laptop as a live spectator
 - `anti-slop/`, the release audit and its click-through evidence
 - `LICENSE`, MIT
 - A custom carrier **PCB design** for a compact hardware build lives on the `pcb-design` branch.
+
+## Credits and dependencies
+
+### Firmware
+
+Everything the device runs. Versions are the ones in the build this release was verified against, read from each library's own `library.properties`.
+
+| Component | Version | Author | License | Role here |
+|---|---|---|---|---|
+| [ESP32 Arduino](https://github.com/espressif/arduino-esp32), the `esp32` platform | 3.3.11 | Espressif Systems | LGPL-2.1 | The MCU framework. Supplies `Wire.h`, `WiFi.h`, `Preferences.h`, `ESPmDNS.h`, `esp_wifi.h`, and the RISC-V toolchain, `esptool.py` and flasher that come with the package. |
+| [ESP Async WebServer](https://github.com/mathieucarbou/ESPAsyncWebServer) | 3.6.0 | Me-No-Dev, maintained by Mathieu Carbou | LGPL-3.0 | `ESPAsyncWebServer.h`. The HTTP routes, and the `AsyncEventSource` behind `/api/events`. |
+| [AsyncTCP](https://github.com/mathieucarbou/AsyncTCP) | 3.3.2 | Hristo Gochkov, maintained by Mathieu Carbou | LGPL-3.0 | Required by ESP Async WebServer, which declares `^3.3.2`. The sketch never includes it directly, but it does not build without it. |
+| [MPU6050_tockn](https://github.com/tockn/MPU6050_tockn) | 1.5.2 | tockn, forked from [ElectronicCats/MPU6050](https://github.com/ElectronicCats/MPU6050) | **none declared**, see the note below | GY-521 / MPU6050 pods only. |
+
+Two dependencies this project deliberately does **not** have:
+
+- **No BMI160 driver.** The sketch reads the BMI160 configuration and data registers
+  directly over I2C and identifies the chip from `CHIP_ID`. There is no Bosch library
+  and no third-party BMI160 code anywhere in the project.
+- **No ArduinoJson.** ESP Async WebServer advertises support for it, but the sketch
+  formats its JSON with `snprintf` in `buildStateJson()`, so nothing pulls ArduinoJson in.
+
+> **A caveat worth knowing about MPU6050_tockn.** The fork ships no `LICENSE` file and
+> declares no `license=` field in its `library.properties`, so it carries no explicit
+> grant to use or redistribute it. Its upstream, ElectronicCats' MPU6050, is MIT. Only
+> the GY-521 path needs this library at all; a BMI160 pod builds without it. If you would
+> rather sit on a plainly licensed library, ElectronicCats' original is API-compatible
+> apart from its header name, so the swap is a one-line `#include` change.
+
+### Web UI: none
+
+The page embedded in `ESP_Leveller.ino` ships **no third-party code to the phone**. No
+JavaScript framework, no CSS framework, no web fonts (the timer uses the browser's own
+`monospace`, everything else uses `system-ui`), no CDN, no analytics, and no vendored
+files. Audio is the browser's built-in WebAudio, and the live updates are the browser's
+built-in `EventSource`. Every byte of the interface is written by hand in the sketch.
+
+### Tooling
+
+Build and audit only. None of this is on the device, and none of it is needed to run the firmware.
+
+| Tool | License | Used for |
+|---|---|---|
+| Arduino IDE or `arduino-cli`, with Espressif's board package | LGPL-2.1 (with the package) | Compiling and flashing |
+| [Node.js](https://nodejs.org) | MIT | Running the click-through harness |
+| [playwright-core](https://github.com/microsoft/playwright) | Apache-2.0 | Driving headless Chromium |
+| Chromium, Playwright build | BSD-3-Clause | Rendering the page under test |
+| Python 3, standard library only | PSF | `anti-slop/mock-firmware-server.py` |
+
+The dependencies above keep their own licences and are not redistributed here. Only the
+firmware and the page in this repository are covered by [LICENSE](LICENSE).
 
 ## License
 

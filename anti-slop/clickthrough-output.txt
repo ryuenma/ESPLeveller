@@ -1,0 +1,59 @@
+=== FIX 1: START is disabled outside IDLE/GAMEOVER (R-26) ===
+PASS  IDLE: START enabled :: disabled=false label="START"
+PASS  PLAYING: START disabled :: disabled=true label="RUNNING"
+PASS  clicking a disabled START is inert :: timer kept running 00.88 -> 01.28, no state change
+
+=== FIX 2: error state on connection loss (R-27) ===
+PASS  reconnect notice is visible with text :: conn="POLLING"
+PASS  notice has a real box (not 0x0) :: box 61x20 border 1px bg rgb(0, 0, 0)
+PASS  poll fallback keeps state flowing :: conn now "POLLING" (POLLING means /api/state is answering)
+
+=== FIX 3: .info contrast now meets AA (R-25) ===
+PASS  contrast .info :: 6.63:1 (rgb(153, 153, 153) on rgb(17,17,17) @ 12.8px)
+PASS  contrast .small :: 6.63:1 (rgb(153, 153, 153) on rgb(17,17,17) @ 13.6px)
+PASS  contrast #status :: 6.14:1 (rgb(238, 238, 238) on rgb(0, 102, 51) @ 17.6px)
+PASS  contrast #conn :: 7.34:1 (rgb(255, 102, 102) on rgb(0, 0, 0) @ 12px)
+
+=== FIX 4: accessible names on steppers (R-32) ===
+PASS  minus has a name :: Decrease threshold
+PASS  plus has a name :: Increase threshold
+PASS  slider has a name :: Tilt threshold in degrees
+PASS  sound checkbox has a <label for> :: lang="en"
+
+=== FIX 5: live regions announce state (R-32) ===
+PASS  #status is a live region :: aria-live=polite
+PASS  #tiltbar is a progressbar with a value :: role=progressbar now=100 text="Tilt 90.0 of 15 degrees"
+PASS  timer is a timer, not a spam live region :: role=timer aria-live=off
+
+=== FIX 6: threshold +/- no longer drop taps (R-26) ===
+PASS  4 taps send 4 DISTINCT values (no stale-value drop) :: POSTed [16,17,18,19]
+PASS  threshold display tracks the taps :: 15deg -> 19deg
+
+=== FIX 6b: threshold controls lock during play (R-26) ===
+PASS  threshold controls disabled while PLAYING :: [{"id":"minus","disabled":true},{"id":"plus","disabled":true},{"id":"thrSlider","disabled":true}]
+PASS  threshold stays locked at GAMEOVER (contract: IDLE only) :: locked while the final time is on screen
+PASS  threshold controls re-enable at IDLE :: all enabled back on the menu
+
+=== FIX 7: no stale red bar on the menu (R-27) ===
+PASS  bar shows danger during play :: fill=100% class="bad"
+PASS  bar is clear on the menu :: status=IDLE fill=0% class=""
+
+=== FIX 8: touch targets (R-03) ===
+PASS  target startBtn >= 44px :: 358x58
+PASS  target calBtn >= 44px :: 175x51
+PASS  target abortBtn >= 44px :: 175x51
+PASS  target minus >= 44px :: 64x51
+PASS  target plus >= 44px :: 64x51
+PASS  target thrSlider >= 44px :: 214x44
+PASS  target snd >= 44px :: 67x44
+
+=== REGRESSION: overflow, zoom, focus, console ===
+PASS  no horizontal overflow at 320px :: scrollW 320 vs 320
+PASS  no horizontal overflow at 390px :: scrollW 390 vs 390
+PASS  no horizontal overflow at 414px :: scrollW 414 vs 414
+PASS  200% text resize reflows :: scrollW 390/390, clipped 0
+PASS  keyboard focus ring visible :: thrSlider: 1px auto
+
+console errors: ["Failed to load resource: the server responded with a status of 404 (Not Found)","Failed to load resource: net::ERR_FAILED"]
+
+ALL CHECKS PASSED

@@ -575,9 +575,14 @@ void startCountdown() {
 }
 
 void calibrateDevice() {
-  // Average 10 samples over ~500ms for a stable base angle.
-  digitalWrite(LED_STATUS, HIGH);  // LED on = calibrating
+  // Average samples over ~500ms for a stable base angle. Divide by the number
+  // that actually read, never the number attempted: a bus hiccup would otherwise
+  // bias the baseline toward zero, and an all-fail run would persist 0/0 to NVS
+  // and read it back as "level" on every boot. A run with too few good samples
+  // keeps the previous baseline rather than writing a wrong one.
+  digitalWrite(LED_STATUS, HIGH); // LED on = calibrating
   float sumX = 0, sumY = 0;
+  int good = 0;
   const int N = 10;
   for (int i = 0; i < N; i++) {
     float ax, ay, az;
@@ -587,14 +592,19 @@ void calibrateDevice() {
                            sqrtf(ay*ay + az*az)) * 57.2958f;
       sumX += roll;
       sumY += pitch;
+      good++;
     }
     delay(50);
   }
-  baseAngleX = sumX / N;
-  baseAngleY = sumY / N;
-  saveSettings();  // calibration is intentional & infrequent: write now
-  currentState = IDLE;
   digitalWrite(LED_STATUS, LOW);
+  currentState = IDLE;
+  if (good < N / 2) {
+    SLOGF("Calibration failed (%d/%d reads), keeping previous level\n", good, N);
+    return;
+  }
+  baseAngleX = sumX / good;
+  baseAngleY = sumY / good;
+  saveSettings(); // calibration is intentional & infrequent: write now
 }
 
 void saveThresholdIfDue() {

@@ -1,14 +1,31 @@
 """Mock of the ESP_Leveller firmware HTTP surface, for click-through testing the web UI.
 
 Usage:  python mock-firmware-server.py [path/to/index.html] [port]
+
+The page is the HTML literal embedded in ESP_Leveller.ino. If no path is given,
+look for index.html beside this script, then try to extract it from the sketch.
 """
 import json, os, re, sys, threading, time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-PAGE_PATH = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "index.html")
-with open(PAGE_PATH, encoding="utf-8") as f:
-    PAGE = f.read()
+SKETCH = os.path.join(HERE, os.pardir, "ESP_Leveller.ino")
+
+
+def find_page():
+    if len(sys.argv) > 1:
+        return sys.argv[1]
+    beside = os.path.join(HERE, "index.html")
+    if os.path.exists(beside):
+        return beside
+    with open(SKETCH, encoding="utf-8") as f:
+        return re.search(r'R"rawliteral\(\n(.*?)\n\)rawliteral"', f.read(), re.S).group(1)
+
+
+PAGE = find_page()
+if os.path.exists(PAGE):
+    with open(PAGE, encoding="utf-8") as f:
+        PAGE = f.read()
 PORT = int(sys.argv[2]) if len(sys.argv) > 2 else 8899
 
 STATE = {"state": "IDLE", "tilt": 0.0, "thr": 15, "t": 0}

@@ -239,7 +239,7 @@ const char* HTML_PAGE = R"rawliteral(
 <div class='row'>
   <button id='minus' aria-label='Decrease threshold'>&#x2796;</button>
   <input type='range' id='thrSlider' min='5' max='90' step='1' value='15'
-         aria-label='Tilt threshold in degrees' style='flex:1'>
+         aria-label='Tilt threshold in degrees'>
   <button id='plus' aria-label='Increase threshold'>&#x2795;</button>
 </div>
 <div class='row'>
@@ -253,8 +253,9 @@ const char* HTML_PAGE = R"rawliteral(
 <button id='startBtn'>START</button>
 <div class='info'>WiFi: ESPLevellerAP &bull; 192.168.4.1</div>
 <script>
-let last={state:'IDLE'}, lastTick=0, actx=null, thr=15;
+let last={state:'IDLE'}, lastTick=0, actx=null;
 const $=id=>document.getElementById(id);
+const slider=$('thrSlider');
 function ctx(){
   if(!actx) actx=new (window.AudioContext||window.webkitAudioContext)();
   if(actx.state==='suspended') actx.resume();
@@ -285,23 +286,25 @@ function post(u){ fetch(u,{method:'POST',cache:'no-store'}); }
 $('startBtn').onclick=()=>{ ctx(); post('/api/start'); };
 $('calBtn').onclick =()=>post('/api/calibrate');
 $('abortBtn').onclick=()=>post('/api/abort');
-// Steps move the local value immediately. Waiting for the device's 10 Hz push to
-// come back meant a burst of taps all computed from the same stale value and
-// most of them were lost. 250ms is longer than the POST round trip, so a burst
-// still wins; after it, the device value is authoritative again.
+// The device echoes an accepted threshold immediately (it calls
+// pushStateEvent(true) on /api/threshold), so taps were never waiting on the
+// 10 Hz tick. They were lost because the next value was computed from a variable
+// the device only refreshed on a push, so a burst of taps all read the same
+// stale number. Move the local value first and hold it for a moment, so a burst
+// is not clobbered by an in-flight echo halfway through.
 const NUDGE_LOCK_MS=250;
-let thrLocal=15, lastNudge=0;
+const THR_MIN=+slider.min, THR_MAX=+slider.max;   // the firmware clamps too, and is the authority
+let thrLocal=+slider.value, lastNudge=0;
 function paintThr(v){ thrLocal=v; $('thrtxt').textContent=v+'\u00B0'; if(document.activeElement!==slider) slider.value=v; }
 function nudge(d){
-  paintThr(Math.max(5,Math.min(90,thrLocal+d)));
+  paintThr(Math.max(THR_MIN,Math.min(THR_MAX,thrLocal+d)));
   lastNudge=Date.now();
   post('/api/threshold?val='+thrLocal);
 }
 $('plus').onclick =()=>nudge(1);
 $('minus').onclick=()=>nudge(-1);
-const slider=$('thrSlider');
-slider.oninput=()=>{ $('thrtxt').textContent=slider.value+'\u00B0'; };          // live feedback
-slider.onchange=()=>{ lastNudge=Date.now(); thrLocal=+slider.value; post('/api/threshold?val='+slider.value); };  // commit on release
+slider.oninput=()=>{ thrLocal=+slider.value; $('thrtxt').textContent=slider.value+'\u00B0'; };
+slider.onchange=()=>{ lastNudge=Date.now(); thrLocal=+slider.value; post('/api/threshold?val='+slider.value); };
 document.addEventListener('pointerdown',()=>{try{ctx();}catch(e){}},{once:true});
 $('snd').onchange=()=>{if($('snd').checked) beep(1500,80);};
 function fmt(ms){
@@ -319,47 +322,57 @@ function applyState(s){
     if(now-lastTick>iv){ beep(2500,15); lastTick=now; }
   }
   last=s;
-  // Respect an in-flight nudge burst; otherwise the device is the truth.
-  if(Date.now()-lastNudge>NUDGE_LOCK_MS){
-    thrLocal=s.thr;
-    $('thrtxt').textContent=s.thr+'\u00B0';
-    if(document.activeElement!==slider) slider.value=s.thr;   // don't fight the user's finger
-  }
+  if(Date.now()-lastNudge>NUDGE_LOCK_MS) paintThr(s.thr);
   $('timer').textContent=fmt(s.t)+(s.state==='GAMEOVER'?' FINAL':'');
-  // The device keeps publishing live tilt, so a device left tilted would keep
-  // the bar red on the menu. Only report a tilt that is actually in play.
+  // The device keeps publishing live tilt, so a device left tilted would show a
+  // red bar on the menu. Outside a round there is no tilt to report, so every
+  // derived value reads from one gated number rather than a mix of gated and raw.
   const inPlay=(s.state==='PLAYING'||s.state==='COUNTDOWN');
-  const pct=inPlay?Math.max(0,Math.min(100,s.tilt/s.thr*100)):0;
+  const tilt=inPlay?s.tilt:0;
+  const pct=Math.max(0,Math.min(100,tilt/s.thr*100));
   const f=$('tiltfill'); f.style.width=pct+'%';
-  f.className=(pct===0)?'':(s.tilt>s.thr?'bad':(s.tilt>s.thr*0.75?'warn':''));
+  f.className=!inPlay?'':(tilt>s.thr?'bad':(tilt>s.thr*0.75?'warn':''));
   const bar=$('tiltbar'); bar.setAttribute('aria-valuenow',Math.round(pct));
-  bar.setAttribute('aria-valuetext','Tilt '+s.tilt.toFixed(1)+' of '+s.thr+' degrees');
-  $('tilttxt').textContent='Tilt '+s.tilt.toFixed(1)+' / '+s.thr+' deg';
-  const st=$('status'); st.textContent=s.state; st.className=s.state;
-  // START only means something in IDLE and GAMEOVER; disabled elsewhere, so
-  // there is no live control that silently does nothing.
+  bar.setAttribute('aria-valuetext','Tilt '+tilt.toFixed(1)+' of '+s.thr+' degrees');
+  $('tilttxt').textContent='Tilt '+tilt.toFixed(1)+' / '+s.thr+' deg';
+  // #status is an aria-live region, and this runs ten times a second. Writing
+  // identical text still counts as a change to assistive tech, which would queue
+  // an announcement every tick, so only write on a real transition.
+  const st=$('status');
+  if(st.textContent!==s.state){ st.textContent=s.state; st.className=s.state; }
+  // One place that knows which actions the device will actually accept: START
+  // from IDLE or GAMEOVER, a threshold change and a calibration from IDLE, STOP
+  // from PLAYING or COUNTDOWN. Every control the device would silently ignore is
+  // disabled, so no live control does nothing. Calibrating mid-round is the
+  // costly one: the device would drop the run without a GAMEOVER or a final time.
+  const idle=(s.state==='IDLE'), over=(s.state==='GAMEOVER');
   const b=$('startBtn');
-  b.disabled=(s.state!=='IDLE'&&s.state!=='GAMEOVER');
-  b.textContent=s.state==='IDLE'?'START':(s.state==='GAMEOVER'?'BACK TO MENU':'RUNNING');
-  // The device only accepts a threshold change while IDLE, so lock the
-  // controls to the same rule instead of letting the tap be swallowed.
-  const lockThr=(s.state!=='IDLE');
-  $('minus').disabled=lockThr; $('plus').disabled=lockThr; slider.disabled=lockThr;
+  b.disabled=!idle&&!over;
+  b.textContent=idle?'START':(over?'BACK TO MENU':'RUNNING');
+  $('minus').disabled=!idle; $('plus').disabled=!idle; slider.disabled=!idle;
+  $('calBtn').disabled=!idle;
+  $('abortBtn').disabled=!inPlay;
 }
-function setConn(txt){ $('conn').textContent=txt||''; }
-let pollTimer=null;
+function setConn(txt){ const c=$('conn'); if(c.textContent!==txt) c.textContent=txt; }
+let pollTimer=null, pollBusy=false;
 function connect(){
   const es=new EventSource('/api/events');
-  es.onopen =()=>{ setConn(''); if(pollTimer){clearInterval(pollTimer); pollTimer=null;} };
+  es.onopen =()=>{ if(pollTimer){clearInterval(pollTimer); pollTimer=null;} setConn(''); };
   es.onmessage=e=>{ try{ applyState(JSON.parse(e.data)); }catch(_){} };
   es.onerror=()=>{ setConn('RECONNECTING');
-    // Fall back to polling until the stream comes back. Started on error, not
-    // on a timer: a stream that never opens also never fires onerror-before-open.
-    if(!pollTimer) pollTimer=setInterval(async()=>{
+    // Poll only while the stream is down, and never alongside it. A poll already
+    // in flight can resolve after onopen has cleared the timer, and it would
+    // leave the badge reading POLLING for the rest of a healthy session.
+    if(pollTimer) return;
+    pollTimer=setInterval(async()=>{
+      if(pollBusy) return;            // do not stack requests on a busy device
+      pollBusy=true;
       try{
         const s=await (await fetch('/api/state',{cache:'no-store'})).json();
+        if(!pollTimer) return;       // the stream came back while this was in flight
         applyState(s); setConn('POLLING');
-      }catch(_){ setConn('RECONNECTING'); }
+      }catch(_){ if(pollTimer) setConn('RECONNECTING'); }
+      finally{ pollBusy=false; }
     },1000);
   };
 }

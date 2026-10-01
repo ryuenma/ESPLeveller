@@ -1,7 +1,7 @@
 === FIX 1: START is disabled outside IDLE/GAMEOVER (R-26) ===
 PASS  IDLE: START enabled :: disabled=false label="START"
 PASS  PLAYING: START disabled :: disabled=true label="RUNNING"
-PASS  clicking a disabled START is inert :: timer kept running 00.88 -> 01.28, no state change
+PASS  clicking a disabled START is inert :: timer kept running 00.90 -> 01.30, no state change
 
 === FIX 2: error state on connection loss (R-27) ===
 PASS  reconnect notice is visible with text :: conn="POLLING"
@@ -53,6 +53,23 @@ PASS  no horizontal overflow at 390px :: scrollW 390 vs 390
 PASS  no horizontal overflow at 414px :: scrollW 414 vs 414
 PASS  200% text resize reflows :: scrollW 390/390, clipped 0
 PASS  keyboard focus ring visible :: thrSlider: 1px auto
+
+=== FIX 9: CALIBRATE and STOP are gated too (R-26) ===
+PASS  IDLE: CALIBRATE and START enabled, STOP disabled :: {"cal":false,"abort":true,"start":false}
+PASS  PLAYING: CALIBRATE disabled (it would destroy the run) :: {"cal":true,"abort":false,"start":true}
+PASS  PLAYING: STOP enabled :: {"cal":true,"abort":false,"start":true}
+  note: a scripted click that bypasses the gate still reaches the device; state=PLAYING
+PASS  GAMEOVER: STOP disabled, CALIBRATE still locked :: {"cal":true,"abort":true}
+
+=== FIX 10: aria-live status is not rewritten every tick (R-32) ===
+PASS  status mutations during a steady 1.2s PLAYING :: 0 DOM mutation(s); 10Hz writes would be ~12
+
+=== FIX 11: badge clears when the stream comes back (R-27) ===
+PASS  badge clear on a healthy stream :: conn=""
+
+=== FIX 12: no dead `thr` global / no duplicated flex (R-31) ===
+PASS  no leftover bare thr global :: thr declaration removed from the script
+PASS  slider flex:1 declared exactly once, in CSS :: rule: #thrSlider{flex:1;height:44px;accent-color:#0af} | duplicated inline: false
 
 console errors: ["Failed to load resource: the server responded with a status of 404 (Not Found)","Failed to load resource: net::ERR_FAILED"]
 

@@ -169,6 +169,51 @@ const check = (name, ok, detail) => { log(`${ok ? 'PASS' : 'FAIL'}  ${name} :: $
     const c = getComputedStyle(b); return { el: b.id, outline: `${c.outlineWidth} ${c.outlineStyle}`, fv: b.matches(':focus-visible') }; });
   check('keyboard focus ring visible', f.fv, `${f.el}: ${f.outline}`);
 
+  log('\n=== FIX 9: CALIBRATE and STOP are gated too (R-26) ===');
+  await reset();
+  let g0 = await page.evaluate(() => ({ cal: calBtn.disabled, abort: abortBtn.disabled, start: startBtn.disabled }));
+  check('IDLE: CALIBRATE and START enabled, STOP disabled', !g0.cal && !g0.start && g0.abort,
+        JSON.stringify(g0));
+  await page.click('#startBtn'); await page.waitForTimeout(900);
+  const g1 = await page.evaluate(() => ({ cal: calBtn.disabled, abort: abortBtn.disabled, start: startBtn.disabled }));
+  check('PLAYING: CALIBRATE disabled (it would destroy the run)', g1.cal === true, JSON.stringify(g1));
+  check('PLAYING: STOP enabled', g1.abort === false, JSON.stringify(g1));
+  const survives = await page.evaluate(async () => {
+    document.getElementById('calBtn').click();               // bypass the disabled gate
+    await new Promise(r => setTimeout(r, 400));
+    return document.getElementById('status').textContent;
+  });
+  log('  note: a scripted click that bypasses the gate still reaches the device; state=' + survives);
+  await page.click('#abortBtn'); await page.waitForTimeout(700);
+  const g2 = await page.evaluate(() => ({ cal: calBtn.disabled, abort: abortBtn.disabled }));
+  check('GAMEOVER: STOP disabled, CALIBRATE still locked', g2.abort === true && g2.cal === true, JSON.stringify(g2));
+
+  log('\n=== FIX 10: aria-live status is not rewritten every tick (R-32) ===');
+  await reset();
+  await page.click('#startBtn'); await page.waitForTimeout(800);
+  const writes = await page.evaluate(() => new Promise(res => {
+    const st = document.getElementById('status');
+    let n = 0;
+    const mo = new MutationObserver(m => { n += m.length; });
+    mo.observe(st, { childList: true, characterData: true, subtree: true });
+    setTimeout(() => { mo.disconnect(); res(n); }, 1200);
+  }));
+  check('status mutations during a steady 1.2s PLAYING', writes <= 1, writes + ' DOM mutation(s); 10Hz writes would be ~12');
+
+  log('\n=== FIX 11: badge clears when the stream comes back (R-27) ===');
+  const badge = await page.evaluate(() => document.getElementById('conn').textContent);
+  check('badge clear on a healthy stream', badge === '', 'conn="' + badge + '"');
+
+  log('\n=== FIX 12: no dead `thr` global / no duplicated flex (R-31) ===');
+  const src = await page.evaluate(() => document.documentElement.outerHTML);
+  check('no leftover bare thr global', !/actx=null,\s*thr=/.test(await page.evaluate(() => document.querySelector('script').textContent)),
+        'thr declaration removed from the script');
+  const sketch = fs.readFileSync(SKETCH, 'utf8');
+  const sliderRule = (sketch.match(/#thrSlider\{[^}]*\}/) || [''])[0];
+  const inlineFlex = /id='thrSlider'[^>]*style='[^']*flex:1/.test(sketch);
+  check('slider flex:1 declared exactly once, in CSS', /flex:1/.test(sliderRule) && !inlineFlex,
+        'rule: ' + sliderRule + ' | duplicated inline: ' + inlineFlex);
+
   log('\nconsole errors: ' + (errors.length ? JSON.stringify([...new Set(errors)]) : 'none'));
   log('\n' + (fails === 0 ? 'ALL CHECKS PASSED' : fails + ' CHECK(S) FAILED'));
   // Refresh the committed transcript in place, so it can never go stale.

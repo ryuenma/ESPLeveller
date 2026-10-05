@@ -1,13 +1,16 @@
 /*================================================================================
   ESP LEVELLER, WEB ONLY (no OLED, no buttons, no buzzer)
   Board: LuatOS ESP32C3-CORE (and cheap clones thereof)
-  WIRING (sensor pod, either module works, auto-detected at boot):
+  WIRING (sensor pod, either module is auto-detected at boot):
   - GY-521 (MPU6050) or GY-BMI160: VCC->3V3, GND->GND
   - Board IO4 -> SDA  (board's dedicated I2C_SDA pin)
   - Board IO5 -> SCL  (board's dedicated I2C_SCL pin)
   NOTE: marketplace "GY-LSM6DS3" boards often actually carry a BMI160
   (chips are pin-compatible, sellers mix them up). Firmware detects
   the real chip by ID register, so the label doesn't matter.
+  TEST STATUS: the MPU6050 path is field-tested. The BMI160 path was
+  written from the datasheet and has NEVER run on a real BMI160.
+  See README "Tested and proven" before trusting it.
 
   BOARD-SPECIFIC NOTES (LuatOS ESP32C3-CORE):
   - External SPI flash uses GPIO11-17 (DIO mode). DO NOT use GPIO11-17

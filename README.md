@@ -10,15 +10,53 @@ A real-time steadiness game built on an **ESP32-C3** and an accelerometer sensor
 - **Threshold from 5 to 90°**, anywhere from "steady surgeon" to "anything goes"
 - **Calibration**: whatever orientation you are holding becomes level, saved to flash
 - **Settings persist** in NVS (threshold and calibration base), so they survive power cycles
-- **Auto-detecting sensor pod**: works with a GY-521 (MPU6050) *or* a BMI160 breakout (e.g. GY-BMI160). Marketplace "GY-LSM6DS3" boards often actually carry a BMI160, since the chips are pin-compatible; the firmware identifies the real chip by its ID register, so the label does not matter
+- **Auto-detecting sensor pod**: detects a GY-521 (MPU6050) *or* a BMI160 breakout (e.g. GY-BMI160) at boot and picks the right driver. Marketplace "GY-LSM6DS3" boards often actually carry a BMI160, since the chips are pin-compatible; the firmware identifies the real chip by its ID register, so the label does not matter. See [Tested and proven](#tested-and-proven) before choosing a pod
 - **Spectral spectator mode**: a second phone or laptop on the same network sees the round live
+
+## Tested and proven
+
+Honest status per path, because the two sensor paths are not equally proven and the README used to imply they were.
+
+| Path | Status |
+|---|---|
+| **GY-521 (MPU6050)** | **Field-tested.** This is the path that ran on real devices, and it is where the drift bug was found and fixed. |
+| **GY-BMI160** | **Written and committed, never run on hardware.** Do not trust it yet. |
+
+Details:
+
+- **The GY-521 path is proven in the field.** Commit `8781fb7` ("QC round 1", 2026-09-06) fixed a
+  threshold bypass that turned out to be gyro bias accumulating over hours, which the commit
+  records as *field-confirmed*. Tilt is now computed with `atan2` against gravity from the
+  accelerometer, so it is absolute and does not drift.
+- **The BMI160 path has never been on a real BMI160.** It landed in `823e704` on 2026-09-08,
+  two days *after* the last field QC, and nothing since has put it on a sensor. The driver is
+  written from the datasheet and reads plausibly, but "written" and "verified" are different
+  claims and only the first one is true here. The soft reset and its dummy-read quirk, the
+  100 Hz and ±2 g configuration, and the `CHIP_ID` detection are all unexercised.
+- **No firmware release has been compiled in CI.** There is no build step in this repository
+  and no `arduino-cli` on the machine that produced the release commits, so the firmware has
+  never been built automatically. It was compiled and flashed by hand during development.
+- **The web UI is verified against a mock, not a device.** The click-through in `anti-slop/`
+  drives the real embedded page in headless Chromium against a Python mock of the firmware's
+  HTTP surface. That proves the page, the state machine, and the SSE contract. It cannot prove
+  real accelerometer noise, the WiFi access point, or the I2C bus. See
+  [`anti-slop/README.md`](anti-slop/README.md).
+
+If you are wiring this up for the first time, **start with a GY-521 (MPU6050)**. If you only have
+a BMI160 pod, treat it as an untested code path and expect to debug it yourself. Reporting what
+you find would be genuinely useful.
 
 ## Hardware
 
-| Part | Role |
-|------|------|
-| ESP32-C3 (Super Mini / LuatOS C3-CORE or clone) | MCU + WiFi access point |
-| GY-521 (MPU6050) **or** GY-BMI160 breakout | Tilt sensing |
+| Part | Role | Status |
+|------|------|--------|
+| ESP32-C3 (Super Mini / LuatOS C3-CORE or clone) | MCU + WiFi access point | Field-tested |
+| **GY-521 (MPU6050)** | Tilt sensing | **Field-tested, use this one** |
+| GY-BMI160 breakout | Tilt sensing | Driver written, **never run on hardware** |
+
+Both pods wire up the same way and both are auto-detected, but see
+[Tested and proven](#tested-and-proven) before choosing. The short version: the MPU6050 path
+has run on real devices, the BMI160 path has not run on any.
 
 ### Wiring
 
